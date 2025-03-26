@@ -14,7 +14,7 @@ type UserController struct {
 func NewUserController() *UserController {
 	return &UserController{
 		BaseController: base.BaseController{
-			Model: models.User{}, // Pass the User model to the base controller
+			Model: &models.User{}, // Pass the User model to the base controller
 		},
 	}
 }

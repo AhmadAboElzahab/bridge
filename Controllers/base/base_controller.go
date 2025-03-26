@@ -1,6 +1,8 @@
 package base
 
 import (
+	"reflect"
+
 	"github.com/AhmadAboElzahab/bridge/initializers"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -11,23 +13,34 @@ type BaseController struct {
 }
 
 func (c *BaseController) Index(ctx *gin.Context) {
-	var result []interface{}
-	initializers.DB.Find(&result)
-	if len(result) == 0 {
-		ctx.JSON(200, gin.H{"message": "no records found"})
+	// Create a slice of the same type as the model
+	modelType := reflect.TypeOf(c.Model).Elem()
+	sliceType := reflect.SliceOf(modelType)
+	results := reflect.New(sliceType).Elem()
+
+	// Find all records
+	if err := initializers.DB.Find(results.Addr().Interface()).Error; err != nil {
+		ctx.JSON(500, gin.H{"error": "Failed to fetch records"})
 		return
 	}
-	ctx.JSON(200, result)
+
+	if results.Len() == 0 {
+		ctx.JSON(200, gin.H{"message": "No records found"})
+		return
+	}
+
+	ctx.JSON(200, results.Interface())
 }
 
 func (c *BaseController) Store(ctx *gin.Context) {
-	// Logic to bind data and create the resource (customize based on model)
+	// This function can be extended to handle model-specific logic
 }
 
 func (c *BaseController) Show(ctx *gin.Context) {
 	id := ctx.Param("id")
-	var modelInstance interface{}
-	result := initializers.DB.First(&modelInstance, id)
+	// Use type assertion to cast the model to the actual type
+	modelInstance := c.Model
+	result := initializers.DB.First(modelInstance, id)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			ctx.JSON(404, gin.H{"error": "Resource not found"})
@@ -40,17 +53,17 @@ func (c *BaseController) Show(ctx *gin.Context) {
 }
 
 func (c *BaseController) Update(ctx *gin.Context) {
-	// Logic to bind data and update the resource (customize based on model)
+	// Logic to update model (could be extended to handle dynamic fields)
 }
 
 func (c *BaseController) Delete(ctx *gin.Context) {
 	id := ctx.Param("id")
-	var modelInstance interface{}
-	if err := initializers.DB.First(&modelInstance, id).Error; err != nil {
+	modelInstance := c.Model
+	if err := initializers.DB.First(modelInstance, id).Error; err != nil {
 		ctx.JSON(404, gin.H{"error": "Resource not found"})
 		return
 	}
-	if err := initializers.DB.Delete(&modelInstance).Error; err != nil {
+	if err := initializers.DB.Delete(modelInstance).Error; err != nil {
 		ctx.JSON(500, gin.H{"error": "Failed to delete resource"})
 		return
 	}
