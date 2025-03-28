@@ -3,6 +3,14 @@ module github.com/AhmadAboElzahab/bridge
 go 1.24.1
 
 require (
+	github.com/chai2010/webp v1.1.1
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/gin-contrib/static v1.1.3
+	github.com/google/uuid v1.6.0
+)
+
+require (
+	github.com/buckket/go-blurhash v1.1.0
 	github.com/bytedance/sonic v1.13.2 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
@@ -35,6 +43,7 @@ require (
 	github.com/radovskyb/watcher v1.0.7 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
+	github.com/woltapp/blurhash v0.0.0-20240521114945-712a47f946b9 // indirect
 	golang.org/x/arch v0.15.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/net v0.37.0 // indirect

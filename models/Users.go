@@ -11,4 +11,6 @@ type User struct {
 	Email         string
 	Password      string
 	Date_of_Birth string
+	Avatar        string
+	Blurhash      string
 }

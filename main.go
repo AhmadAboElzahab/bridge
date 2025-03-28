@@ -12,6 +12,9 @@ func init() {
 }
 func main() {
 	router := gin.Default()
+	router.Static("/storage", "./storage")
+
 	routes.SetupRoutes(router)
+
 	router.Run()
 }
