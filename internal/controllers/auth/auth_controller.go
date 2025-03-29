@@ -17,22 +17,19 @@ import (
 
 type AuthController struct{}
 type Claims struct {
-	UserID uint `json:"user_id"` // Change `user_id` to `UserID` (uppercase)
+	UserID uint `json:"user_id"`
 	jwt.StandardClaims
 }
 
-// Constructor function for creating a new AuthController
 func NewAuthController() *AuthController {
-
 	return &AuthController{}
 }
 
-// Store (Create a new auth)
 func (uc *AuthController) Signup(ctx *gin.Context) {
 	var body struct {
-		First_Name    string `json:"first_name"`
+		First_Name    string `json:"first_name" binding:"required"`
 		Last_Name     string `json:"last_name"`
-		Email         string `json:"email"`
+		Email         string `json:"email binding:"required,email"`
 		Password      string `json:"password"`
 		Date_of_Birth string `json:"Date_of_Birth"`
 	}
@@ -42,14 +39,13 @@ func (uc *AuthController) Signup(ctx *gin.Context) {
 		return
 	}
 
-	// Process the image using the reusable function
 	savePath, hash, err := utils.ProcessImageUpload(file, "./storage/users")
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := ctx.Bind(&body); err != nil {
+	if err := ctx.ShouldBind(&body); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
@@ -83,12 +79,12 @@ func (uc *AuthController) Signup(ctx *gin.Context) {
 }
 func (uc *AuthController) Signin(ctx *gin.Context) {
 	var body struct {
-		Email    string `json:"email"`
+		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password"`
 	}
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -103,14 +99,12 @@ func (uc *AuthController) Signin(ctx *gin.Context) {
 		return
 	}
 
-	// Check password
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
 
-	// Generate JWT token
 	newAccessToken, err := generateJWT(user.ID, 15*time.Minute)
 
 	ctx.JSON(http.StatusOK, gin.H{
@@ -119,10 +113,9 @@ func (uc *AuthController) Signin(ctx *gin.Context) {
 	})
 }
 
-// Generate JWT Token
 func generateJWT(user_id uint, duration time.Duration) (string, error) {
 	claims := &Claims{
-		UserID: user_id, // Change `user_id` to `UserID`
+		UserID: user_id,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(duration).Unix(),
 			IssuedAt:  time.Now().Unix(),

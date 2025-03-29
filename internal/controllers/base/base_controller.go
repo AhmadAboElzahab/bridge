@@ -13,15 +13,14 @@ type BaseController struct {
 }
 
 func (c *BaseController) Index(ctx *gin.Context) {
-	// Create a slice of the same type as the model
 	modelType := reflect.TypeOf(c.Model).Elem()
 	sliceType := reflect.SliceOf(modelType)
 	results := reflect.New(sliceType).Elem()
 
-	// Find all records
 	if err := initializers.DB.Find(results.Addr().Interface()).Error; err != nil {
 		ctx.JSON(500, gin.H{"error": "Failed to fetch records"})
 		return
+
 	}
 
 	if results.Len() == 0 {
@@ -37,7 +36,6 @@ func (c *BaseController) Store(ctx *gin.Context) {
 
 func (c *BaseController) Show(ctx *gin.Context) {
 	id := ctx.Param("id")
-	// Use type assertion to cast the model to the actual type
 	modelInstance := c.Model
 	result := initializers.DB.First(modelInstance, id)
 	if result.Error != nil {
@@ -52,7 +50,6 @@ func (c *BaseController) Show(ctx *gin.Context) {
 }
 
 func (c *BaseController) Update(ctx *gin.Context) {
-	// Logic to update model (could be extended to handle dynamic fields)
 }
 
 func (c *BaseController) Delete(ctx *gin.Context) {

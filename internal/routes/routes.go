@@ -9,7 +9,6 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine) {
-	// Create controllers
 	userCtrl := user.NewUserController()
 	patientCtrl := patient.NewPatientController()
 	authCtrl := auth.NewAuthController()

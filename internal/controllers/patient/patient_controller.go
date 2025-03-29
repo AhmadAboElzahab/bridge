@@ -14,7 +14,7 @@ type PatientController struct {
 func NewPatientController() *PatientController {
 	return &PatientController{
 		BaseController: base.BaseController{
-			Model: &models.Patient{}, // Pass the Patient model to the base controller
+			Model: &models.Patient{},
 		},
 	}
 }
