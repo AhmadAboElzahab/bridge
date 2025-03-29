@@ -1,0 +1,43 @@
+name: Code Quality
+on: [push, pull_request]
+
+jobs:
+  lint:
+    name: Check Formatting & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "1.20"
+
+      - name: Install goimports
+        run: go install golang.org/x/tools/cmd/goimports@latest
+
+      - name: Check formatting with gofmt
+        run: |
+          gofmt -l . > gofmt-issues.txt
+          if [ -s gofmt-issues.txt ]; then
+            echo "❌ The following files are not formatted correctly:"
+            cat gofmt-issues.txt
+            echo "Please run 'go fmt ./...' to fix them."
+            exit 1
+          fi
+          echo "✅ All files are formatted correctly."
+
+      - name: Check imports with goimports
+        run: |
+          goimports -l . > goimports-issues.txt
+          if [ -s goimports-issues.txt ]; then
+            echo "❌ The following files have import issues:"
+            cat goimports-issues.txt
+            echo "Please run 'goimports -w .' to fix them."
+            exit 1
+          fi
+          echo "✅ All imports are correctly organized."
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
