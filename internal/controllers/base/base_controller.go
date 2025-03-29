@@ -33,7 +33,6 @@ func (c *BaseController) Index(ctx *gin.Context) {
 }
 
 func (c *BaseController) Store(ctx *gin.Context) {
-	// This function can be extended to handle model-specific logic
 }
 
 func (c *BaseController) Show(ctx *gin.Context) {

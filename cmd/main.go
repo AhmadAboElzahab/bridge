@@ -7,12 +7,15 @@ import (
 )
 
 func init() {
+
 	initializers.LoadENV()
 	initializers.ConnectDatabase()
 }
 func main() {
 	router := gin.Default()
-	router.Static("/storage", "./storage")
+	gin.ForceConsoleColor()
+
+	router.Static("/storage", "../../storage")
 
 	routes.SetupRoutes(router)
 
