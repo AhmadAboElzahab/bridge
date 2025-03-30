@@ -1,0 +1,137 @@
+definitions:
+  auth.SigninRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  models.User:
+    properties:
+      avatar:
+        example: /images/avatar.png
+        type: string
+      blurhash:
+        example: LKO2?V%2Tw=w]~RBVZRi};RPxuwH
+        type: string
+      created_at:
+        type: string
+      date_of_birth:
+        example: "1990-01-01"
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      first_name:
+        example: John
+        type: string
+      id:
+        example: 1
+        type: integer
+      last_name:
+        example: Doe
+        type: string
+      updated_at:
+        type: string
+    type: object
+  utils.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/auth/signin:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns a JWT token
+      parameters:
+      - description: Signin request body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.SigninRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      summary: User Signin
+      tags:
+      - auth
+  /api/auth/signup:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Registers a new user
+      parameters:
+      - description: First Name
+        in: formData
+        name: first_name
+        required: true
+        type: string
+      - description: Last Name
+        in: formData
+        name: last_name
+        type: string
+      - description: Email
+        format: email
+        in: formData
+        name: email
+        required: true
+        type: string
+      - description: Password
+        in: formData
+        name: password
+        required: true
+        type: string
+      - description: Date of Birth
+        format: date
+        in: formData
+        name: date_of_birth
+        type: string
+      - description: Avatar Image
+        in: formData
+        name: avatar
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      summary: User Signup
+      tags:
+      - Auth
+swagger: "2.0"

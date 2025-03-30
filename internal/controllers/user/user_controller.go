@@ -29,7 +29,7 @@ func (uc *UserController) Store(ctx *gin.Context) {
 		return
 	}
 
-	user := models.User{First_Name: body.First_Name, Email: body.Email}
+	user := models.User{FirstName: body.First_Name, Email: body.Email}
 	result := initializers.DB.Create(&user)
 	if result.Error != nil {
 		ctx.JSON(400, gin.H{"error": "Failed to create user"})
