@@ -13,6 +13,7 @@ func init() {
 func main() {
 	router := gin.Default()
 	gin.ForceConsoleColor()
+	router.Use(gin.Logger())
 
 	router.Static("/storage", "../../storage")
 

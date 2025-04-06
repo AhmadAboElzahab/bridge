@@ -2,6 +2,8 @@ package auth
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -45,6 +47,8 @@ func NewAuthController() *AuthController {
 //	@Failure		500				{object}	utils.ErrorResponse
 //	@Router			/api/auth/signup [post]
 func (uc *AuthController) Signup(ctx *gin.Context) {
+	fmt.Println("Binding error:", "sad") // Log the exact error
+
 	var body struct {
 		FirstName   string `form:"first_name" binding:"required"`
 		LastName    string `form:"last_name"`
@@ -54,7 +58,10 @@ func (uc *AuthController) Signup(ctx *gin.Context) {
 	}
 
 	if err := ctx.ShouldBind(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse{Error: "Invalid input"})
+		fmt.Println("Binding error:", err) // Log the exact error
+		log.Println("Binding error:", err)
+
+		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -69,6 +76,8 @@ func (uc *AuthController) Signup(ctx *gin.Context) {
 	if err == nil { // If no file is provided, we skip the upload process
 		savePath, hash, err = utils.ProcessImageUpload(file, "./storage/users")
 		if err != nil {
+			fmt.Println("Binding error:", err) // Log the exact error
+			log.Println("Binding error:", err)
 			ctx.JSON(http.StatusBadRequest, utils.ErrorResponse{Error: err.Error()})
 			return
 		}

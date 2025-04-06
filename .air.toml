@@ -1,0 +1,9 @@
+[build]
+  cmd = "go run cmd/main.go"  # Path to your main Go entry point
+  bin = "tmp/main"  # Output binary (Air will use this to run the app)
+  exclude_dir = ["tmp"]  # Exclude the tmp directory from being watched
+
+[watch]
+  dirs = ["cmd", "internal"]  # Directories to watch for changes
+  exclude = ["tmp"]  # Exclude the tmp directory from being watched
+  cmd = "go build -o tmp/main cmd/main.go"  # Make sure this is correct

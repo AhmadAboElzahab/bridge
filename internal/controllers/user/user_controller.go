@@ -25,7 +25,7 @@ func (uc *UserController) Store(ctx *gin.Context) {
 		Email      string
 	}
 	if err := ctx.Bind(&body); err != nil {
-		ctx.JSON(400, gin.H{"error": "Invalid input"})
+		ctx.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 

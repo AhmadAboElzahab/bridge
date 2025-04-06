@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: bridge_app
+    ports:
+      - "${PORT}:8080" # Match the port in the Dockerfile (8080)
+    env_file:
+      - .env
+    depends_on:
+      - db
+    networks:
+      - bridge_network
+    volumes:
+      - .:/app # Mount the current directory to /app in the container for hot reloading
+    command: air # Use Air to run the app with hot reloading
+
+  db:
+    image: postgres:15-alpine
+    container_name: bridge_db
+    restart: always
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydatabase
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - bridge_network
+
+networks:
+  bridge_network:
+
+volumes:
+  db_data:

@@ -80,7 +80,7 @@ paths:
             $ref: '#/definitions/utils.ErrorResponse'
       summary: User Signin
       tags:
-      - auth
+      - Auth
   /api/auth/signup:
     post:
       consumes:
