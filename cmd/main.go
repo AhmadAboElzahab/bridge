@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/AhmadAboElzahab/bridge/internal/initializers"
 	"github.com/AhmadAboElzahab/bridge/internal/routes"
 	"github.com/gin-gonic/gin"
@@ -20,4 +22,5 @@ func main() {
 	routes.SetupRoutes(router)
 
 	router.Run()
+	fmt.Println("ahmad")
 }

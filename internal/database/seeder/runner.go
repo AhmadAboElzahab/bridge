@@ -16,6 +16,7 @@ func Run(arg string) {
 		SeedCountries()
 	case "all":
 		SeedCountries()
+		SeedUserFormFields()
 	default:
 		log.Fatalf("❌ Unknown seed type: %s\n", arg)
 	}

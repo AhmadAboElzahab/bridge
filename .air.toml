@@ -7,3 +7,6 @@
   dirs = ["cmd", "internal"]  # Directories to watch for changes
   exclude = ["tmp"]  # Exclude the tmp directory from being watched
   cmd = "go build -o tmp/main cmd/main.go"  # Make sure this is correct
+
+[misc]
+  kill_signal = "SIGKILL"
