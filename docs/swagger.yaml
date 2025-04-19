@@ -9,7 +9,26 @@ definitions:
     - email
     - password
     type: object
+  models.Patient:
+    description: Patient entity with ID, first name, and email
+    properties:
+      created_at:
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      first_name:
+        example: John
+        type: string
+      id:
+        example: 1
+        type: integer
+      updated_at:
+        type: string
+    type: object
   models.User:
+    description: User entity with ID, first name, last name, email, password, date
+      of birth, avatar, and blurhash
     properties:
       avatar:
         example: /images/avatar.png
@@ -36,6 +55,16 @@ definitions:
         type: string
       updated_at:
         type: string
+    type: object
+  patient.PatientInput:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+    required:
+    - email
+    - first_name
     type: object
   utils.ErrorResponse:
     properties:
@@ -134,4 +163,108 @@ paths:
       summary: User Signup
       tags:
       - Auth
+  /api/patients/{id}:
+    delete:
+      description: Delete a patient by ID
+      parameters:
+      - description: Patient ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      summary: Delete a patient
+      tags:
+      - patients
+  /patients:
+    post:
+      consumes:
+      - application/json
+      description: Create a new patient with first name and email
+      parameters:
+      - description: Patient data
+        in: body
+        name: patient
+        required: true
+        schema:
+          $ref: '#/definitions/patient.PatientInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Patient'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      summary: Create a new patient
+      tags:
+      - patients
+  /patients/{id}:
+    get:
+      description: Get a single patient using their ID
+      parameters:
+      - description: Patient ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Patient'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      summary: Get a patient by ID
+      tags:
+      - patients
+    put:
+      consumes:
+      - application/json
+      description: Update patient information by ID
+      parameters:
+      - description: Patient ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated patient data
+        in: body
+        name: patient
+        required: true
+        schema:
+          $ref: '#/definitions/patient.PatientInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Patient'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      summary: Update a patient
+      tags:
+      - patients
 swagger: "2.0"

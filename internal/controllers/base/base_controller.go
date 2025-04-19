@@ -1,9 +1,11 @@
 package base
 
 import (
+	"net/http"
 	"reflect"
 
 	"github.com/AhmadAboElzahab/bridge/internal/initializers"
+	"github.com/AhmadAboElzahab/bridge/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -18,13 +20,13 @@ func (c *BaseController) Index(ctx *gin.Context) {
 	results := reflect.New(sliceType).Elem()
 
 	if err := initializers.DB.Find(results.Addr().Interface()).Error; err != nil {
-		ctx.JSON(500, gin.H{"error": "Failed to fetch records"})
+		ctx.JSON(http.StatusBadGateway, utils.ErrorResponse{Error: "Failed to fetch records"})
 		return
 
 	}
 
 	if results.Len() == 0 {
-		ctx.JSON(200, gin.H{"message": "No records found"})
+		ctx.JSON(http.StatusNoContent, gin.H{"message": "No records found"})
 		return
 	}
 

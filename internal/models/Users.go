@@ -6,6 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// User model represents the user entity in the database
+// @Description User entity with ID, first name, last name, email, password, date of birth, avatar, and blurhash
 type User struct {
 	ID          uint           `json:"id" example:"1"`
 	CreatedAt   time.Time      `json:"created_at"`
