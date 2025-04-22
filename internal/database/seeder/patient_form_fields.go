@@ -8,28 +8,12 @@ import (
 	"github.com/AhmadAboElzahab/bridge/internal/models"
 )
 
-func SeedUserFormFields() {
+func SeedPatientFormFields() {
 	fields := []models.FormField{
 		{
 			Label:     "First Name",
 			FieldKey:  "FirstName",
-			ModelName: constants.USER,
-			HelpText:  "",
-
-			FormFieldType:  constants.TypeStringField,
-			FormIsRequired: true,
-			FormOrder:      1,
-			FormStage:      "info",
-			FormWidth:      2,
-
-			TableIsPinned:  false,
-			TableIsVisible: true,
-			TableOrder:     4,
-		},
-		{
-			Label:     "Last Name",
-			FieldKey:  "LastName",
-			ModelName: constants.USER,
+			ModelName: constants.PATIENT,
 			HelpText:  "",
 
 			FormFieldType:  constants.TypeStringField,
@@ -45,7 +29,7 @@ func SeedUserFormFields() {
 		{
 			Label:     "Email",
 			FieldKey:  "Email",
-			ModelName: constants.USER,
+			ModelName: constants.PATIENT,
 			HelpText:  "",
 
 			FormFieldType:  constants.TypeEmailField,
@@ -59,36 +43,19 @@ func SeedUserFormFields() {
 			TableOrder:     4,
 		},
 		{
-			Label:     "Date of Birth",
-			FieldKey:  "DateOfBirth",
-			ModelName: constants.USER,
-			HelpText:  "",
-
-			FormFieldType:  constants.TypeDateField,
-			FormIsRequired: false,
-			FormOrder:      4,
-			FormStage:      "info",
+			Label:          "Nationality",
+			FieldKey:       "Nationality",
+			ModelName:      constants.PATIENT,
+			HelpText:       "Select a country",
+			FormFieldType:  constants.TypeSingleSelect,
+			DataSource:     "Country:ID:Name",
 			FormWidth:      2,
-
+			FormOrder:      3,
+			FormStage:      "info",
+			FormIsRequired: false,
 			TableIsPinned:  false,
 			TableIsVisible: true,
-			TableOrder:     4,
-		},
-		{
-			Label:     "Avatar",
-			FieldKey:  "Avatar",
-			ModelName: constants.USER,
-			HelpText:  "",
-
-			FormFieldType:  constants.TypeImageField,
-			FormIsRequired: false,
-			FormOrder:      5,
-			FormStage:      "info",
-			FormWidth:      2,
-
-			TableIsPinned:  false,
-			TableIsVisible: true,
-			TableOrder:     0,
+			TableOrder:     3,
 		},
 	}
 

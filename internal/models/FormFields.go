@@ -12,27 +12,21 @@ type FormField struct {
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
-	Label            string            `json:"label"`
-	FieldKey         string            `json:"field_key"`
-	ModelName        string            `json:"model_name"`  // e.g., "User", "Patient"
-	FieldType        string            `json:"field_type"`  // e.g., "string", "date"
-	WidgetType       string            `json:"widget_type"` // e.g., "text", "email", "date", "dropdown"
-	IsFilterable     bool              `json:"is_filterable"`
-	IsRequired       bool              `json:"is_required"`
-	Order            int               `json:"order" gorm:"column:field_order"`
-	FormFieldOptions []FormFieldOption `json:"options" gorm:"foreignKey:FormFieldID"`
-}
+	// Core attributes
+	Label      string `json:"label"`
+	FieldKey   string `json:"field_key"`
+	ModelName  string `json:"model_name"`
+	HelpText   string `json:"form_help_text"`
+	DataSource string `json:"data_source"`
 
-type FormFieldOption struct {
-	ID        uint `json:"id" gorm:"primarykey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	// Form display attributes
+	FormFieldType  string `json:"form_field_type"`
+	FormIsRequired bool   `json:"form_is_required"`
+	FormOrder      int    `json:"form_order" gorm:"column:field_order"`
+	FormStage      string `json:"form_stage"`
+	FormWidth      int    `json:"form_width"`
 
-	FormFieldID uint   `json:"form_field_id"`
-	Label       string `json:"label"`
-	Value       string `json:"value"`
-
-	// Optional relation
-	FormField FormField `gorm:"foreignKey:FormFieldID"`
+	TableIsVisible bool `json:"table_is_visible"`
+	TableOrder     int  `json:"table_order"`
+	TableIsPinned  bool `json:"table_is_pinned"`
 }

@@ -6,13 +6,47 @@ import (
 	"gorm.io/gorm"
 )
 
-// Patient model represents the patient entity in the database
-// @Description Patient entity with ID, first name, and email
+// Patient represents a patient in the system
+//
+// @swagger:model Patient
 type Patient struct {
-	ID         uint           `json:"id" example:"1"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `json:"deleted_at,omitempty" swaggerignore:"true"`
-	First_Name string         `json:"first_name" example:"John"`
-	Email      string         `json:"email" example:"john@example.com"`
+	// The ID of the patient
+	//
+	// required: true
+	// example: 1
+	ID uint `json:"id"`
+
+	// The time the patient was created
+	//
+	// example: 2025-04-20T15:04:05Z
+	CreatedAt time.Time `json:"created_at"`
+
+	// The time the patient was last updated
+	//
+	// example: 2025-04-20T15:04:05Z
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// The time the patient was deleted
+	//
+	// swaggerignore: true
+	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
+
+	// The patient's first name
+	//
+	// required: true
+	// example: John
+	First_Name string `json:"first_name"`
+
+	// The patient's email address
+	//
+	// required: true
+	// example: john@example.com
+	Email string `json:"email"`
+
+	// The ID of the patient's nationality (linked to Country model)
+	//
+	// example: 1
+	NationalityID uint `json:"-"` // hide raw FK
+	// The country object (related model)
+	Nationality Country `json:"nationality" gorm:"foreignKey:NationalityID;references:ID"`
 }
