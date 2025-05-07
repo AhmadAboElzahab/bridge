@@ -54,5 +54,6 @@ func SetupRoutes(r *gin.Engine) {
 	tabsRoutes := protected.Group("/tabs")
 	{
 		tabsRoutes.GET("", tabsCtrl.GetTabs)
+		tabsRoutes.POST("", tabsCtrl.AddNewTab)
 	}
 }
