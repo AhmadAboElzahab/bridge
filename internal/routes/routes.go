@@ -36,7 +36,7 @@ func SetupRoutes(r *gin.Engine) {
 
 	users := protected.Group("/users")
 	{
-		users.GET("/", userCtrl.Index)
+		users.POST("/index", userCtrl.Index)
 		users.POST("/", userCtrl.Store)
 		users.GET("/:id", userCtrl.Show)
 		users.PUT("/:id", userCtrl.Update)
@@ -45,7 +45,7 @@ func SetupRoutes(r *gin.Engine) {
 
 	patients := protected.Group("/patients")
 	{
-		patients.GET("/", patientCtrl.Index)
+		patients.POST("/index", patientCtrl.Index)
 		patients.POST("/", patientCtrl.Store)
 		patients.GET("/:id", patientCtrl.Show)
 		patients.PUT("/:id", patientCtrl.Update)
@@ -54,7 +54,5 @@ func SetupRoutes(r *gin.Engine) {
 	tabsRoutes := protected.Group("/tabs")
 	{
 		tabsRoutes.GET("", tabsCtrl.GetTabs)
-		tabsRoutes.PUT("/:id", tabsCtrl.UpdateTab)
-		tabsRoutes.DELETE("/:id", tabsCtrl.DeleteTab)
 	}
 }
