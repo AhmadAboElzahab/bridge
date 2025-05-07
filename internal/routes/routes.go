@@ -1,8 +1,6 @@
 package routes
 
 import (
-	"fmt"
-
 	_ "github.com/AhmadAboElzahab/bridge/docs"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/auth"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/patient"
@@ -45,11 +43,7 @@ func SetupRoutes(r *gin.Engine) {
 
 	patients := protected.Group("/patients")
 	{
-		patients.GET("/", func(c *gin.Context) {
-			fmt.Println("✅ HIT /api/patients/")
-			c.JSON(200, gin.H{"message": "working"})
-		})
-
+		patients.GET("/", patientCtrl.Index)
 		patients.POST("/", patientCtrl.Store)
 		patients.GET("/:id", patientCtrl.Show)
 		patients.PUT("/:id", patientCtrl.Update)
