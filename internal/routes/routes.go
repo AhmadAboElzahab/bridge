@@ -4,6 +4,7 @@ import (
 	_ "github.com/AhmadAboElzahab/bridge/docs"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/auth"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/patient"
+	"github.com/AhmadAboElzahab/bridge/internal/controllers/tabs"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/user"
 	"github.com/AhmadAboElzahab/bridge/internal/middlewares"
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,7 @@ func SetupRoutes(r *gin.Engine) {
 	userCtrl := user.NewUserController()
 	patientCtrl := patient.NewPatientController()
 	authCtrl := auth.NewAuthController()
+	tabsCtrl := tabs.NewTabsController()
 
 	// Swagger docs
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -48,5 +50,11 @@ func SetupRoutes(r *gin.Engine) {
 		patients.GET("/:id", patientCtrl.Show)
 		patients.PUT("/:id", patientCtrl.Update)
 		patients.DELETE("/:id", patientCtrl.Delete)
+	}
+	tabsRoutes := protected.Group("/tabs")
+	{
+		tabsRoutes.GET("", tabsCtrl.GetTabs)
+		tabsRoutes.PUT("/:id", tabsCtrl.UpdateTab)
+		tabsRoutes.DELETE("/:id", tabsCtrl.DeleteTab)
 	}
 }

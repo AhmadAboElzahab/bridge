@@ -14,6 +14,8 @@ func Run(arg string) {
 	switch strings.ToLower(arg) {
 	case "countries":
 		SeedCountries()
+	case "default_tabs":
+		SeedDefaultUserTabs()
 	case "all":
 		SeedCountries()
 		SeedUserFormFields()
