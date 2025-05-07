@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"fmt"
+
 	_ "github.com/AhmadAboElzahab/bridge/docs"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/auth"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/patient"
@@ -11,44 +13,46 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-// Adjust the import path
-
-// gin-swagger middleware
-// swagger embed files
-
 func SetupRoutes(r *gin.Engine) {
 	userCtrl := user.NewUserController()
 	patientCtrl := patient.NewPatientController()
 	authCtrl := auth.NewAuthController()
+
+	// Swagger docs
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// Public API group
 	api := r.Group("/api")
 
+	// ✅ Public routes
+	authRoutes := api.Group("/auth")
 	{
-		{
-			auth := api.Group("/auth")
-			auth.POST("/signin", authCtrl.Signin)
-			auth.POST("/signup", authCtrl.Signup)
-
-		}
-		api.Use(middlewares.AuthMiddleware())
-		{
-			users := api.Group("/users")
-			users.GET("/", userCtrl.Index)
-			users.POST("/", userCtrl.Store)
-			users.GET("/:id", userCtrl.Show)
-			users.PUT("/:id", userCtrl.Update)
-			users.DELETE("/:id", userCtrl.Delete)
-		}
-
-		{
-			patients := api.Group("/patients")
-			patients.GET("/", patientCtrl.Index)
-			patients.POST("/", patientCtrl.Store)
-			patients.GET("/:id", patientCtrl.Show)
-			patients.PUT("/:id", patientCtrl.Update)
-			patients.DELETE("/:id", patientCtrl.Delete)
-		}
+		authRoutes.POST("/signin", authCtrl.Signin)
+		authRoutes.POST("/signup", authCtrl.Signup)
 	}
 
+	protected := api.Group("/")
+	protected.Use(middlewares.AuthMiddleware())
+
+	users := protected.Group("/users")
+	{
+		users.GET("/", userCtrl.Index)
+		users.POST("/", userCtrl.Store)
+		users.GET("/:id", userCtrl.Show)
+		users.PUT("/:id", userCtrl.Update)
+		users.DELETE("/:id", userCtrl.Delete)
+	}
+
+	patients := protected.Group("/patients")
+	{
+		patients.GET("/", func(c *gin.Context) {
+			fmt.Println("✅ HIT /api/patients/")
+			c.JSON(200, gin.H{"message": "working"})
+		})
+
+		patients.POST("/", patientCtrl.Store)
+		patients.GET("/:id", patientCtrl.Show)
+		patients.PUT("/:id", patientCtrl.Update)
+		patients.DELETE("/:id", patientCtrl.Delete)
+	}
 }

@@ -19,7 +19,6 @@ func ResolveOptionsFromDataSource(dataSource string) ([]map[string]interface{}, 
 	modelName := parts[0]
 	valueField := parts[1]
 	labelField := parts[2]
-
 	var result any
 	switch modelName {
 	case constants.COUNTRIES:

@@ -41,7 +41,6 @@ func (c *BaseController) Index(ctx *gin.Context) {
 		return
 	}
 
-	// Dynamically attach options from DataSource if present
 	formFieldsWithOptions := []gin.H{}
 	for _, field := range fields {
 		fieldMap := gin.H{
@@ -65,6 +64,7 @@ func (c *BaseController) Index(ctx *gin.Context) {
 			options, err := utils.ResolveOptionsFromDataSource(field.DataSource)
 			if err == nil {
 				fieldMap["options"] = options
+
 			}
 		}
 

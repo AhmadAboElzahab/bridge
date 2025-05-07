@@ -18,49 +18,40 @@ type Claims struct {
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenString := c.GetHeader("Authorization")
-		if tokenString == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token required"})
-			c.Abort()
+		if c.Request.Method == "OPTIONS" {
+			c.Next()
 			return
 		}
 
-		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
-		if tokenString == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
-			c.Abort()
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing or invalid token"})
 			return
 		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
 		claims := &Claims{}
 		secret := os.Getenv("JWT_SECRET")
 		if secret == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "JWT_SECRET is not set"})
-			c.Abort()
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "JWT secret not configured"})
 			return
 		}
 
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte(secret), nil
 		})
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
-		}
-
-		if !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
+		if err != nil || !token.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
 		}
 
 		var user models.User
 		if err := initializers.DB.First(&user, claims.UserID).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": claims.UserID})
-			c.Abort()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 			return
 		}
+
 		c.Set("user", user)
 		c.Next()
 	}
