@@ -12,7 +12,7 @@ func SeedPatientFormFields() {
 	fields := []models.FormField{
 		{
 			Label:     "First Name",
-			FieldKey:  "FirstName",
+			FieldKey:  "first_name",
 			ModelName: constants.PATIENT,
 			HelpText:  "",
 
@@ -28,7 +28,7 @@ func SeedPatientFormFields() {
 		},
 		{
 			Label:     "Email",
-			FieldKey:  "Email",
+			FieldKey:  "email",
 			ModelName: constants.PATIENT,
 			HelpText:  "",
 
@@ -44,7 +44,7 @@ func SeedPatientFormFields() {
 		},
 		{
 			Label:          "Nationality",
-			FieldKey:       "Nationality",
+			FieldKey:       "nationality",
 			ModelName:      constants.PATIENT,
 			HelpText:       "Select a country",
 			FormFieldType:  constants.TypeSingleSelect,
