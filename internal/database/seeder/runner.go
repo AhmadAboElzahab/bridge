@@ -18,6 +18,8 @@ func Run(arg string) {
 		SeedLanguages()
 	case "skills":
 		SeedSkills()
+	case "maids":
+		SeedMaidFormFields()
 	case "all":
 		SeedCountries()
 		SeedUserFormFields()

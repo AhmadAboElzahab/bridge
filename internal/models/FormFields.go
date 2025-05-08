@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -13,11 +14,12 @@ type FormField struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
 	// Core attributes
-	Label      string `json:"label"`
-	FieldKey   string `json:"field_key"`
-	ModelName  string `json:"model_name"`
-	HelpText   string `json:"form_help_text"`
-	DataSource string `json:"data_source"`
+	Label      string         `json:"label"`
+	FieldKey   string         `json:"field_key"`
+	ModelName  string         `json:"model_name"`
+	HelpText   string         `json:"form_help_text"`
+	DataSource string         `json:"data_source"`
+	Options    datatypes.JSON `json:"options"`
 
 	// Form display attributes
 	FormFieldType  string `json:"form_field_type"`
