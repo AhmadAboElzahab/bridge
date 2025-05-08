@@ -14,6 +14,10 @@ func Run(arg string) {
 	switch strings.ToLower(arg) {
 	case "countries":
 		SeedCountries()
+	case "languages":
+		SeedLanguages()
+	case "skills":
+		SeedSkills()
 	case "all":
 		SeedCountries()
 		SeedUserFormFields()
