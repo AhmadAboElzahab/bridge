@@ -3,6 +3,7 @@ package routes
 import (
 	_ "github.com/AhmadAboElzahab/bridge/docs"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/auth"
+	maid "github.com/AhmadAboElzahab/bridge/internal/controllers/miad"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/patient"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/tabs"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/user"
@@ -15,6 +16,7 @@ import (
 func SetupRoutes(r *gin.Engine) {
 	userCtrl := user.NewUserController()
 	patientCtrl := patient.NewPatientController()
+	maidCtrl := maid.NewMaidController()
 	authCtrl := auth.NewAuthController()
 	tabsCtrl := tabs.NewTabsController()
 
@@ -50,6 +52,14 @@ func SetupRoutes(r *gin.Engine) {
 		patients.GET("/:id", patientCtrl.Show)
 		patients.PUT("/:id", patientCtrl.Update)
 		patients.DELETE("/:id", patientCtrl.Delete)
+	}
+	maids := protected.Group("/maids")
+	{
+		maids.POST("/index", maidCtrl.Index)
+		maids.POST("/", maidCtrl.Store)
+		maids.GET("/:id", maidCtrl.Show)
+		maids.PUT("/:id", maidCtrl.Update)
+		maids.DELETE("/:id", maidCtrl.Delete)
 	}
 	tabsRoutes := protected.Group("/tabs")
 	{

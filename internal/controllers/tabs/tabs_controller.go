@@ -1,6 +1,7 @@
 package tabs
 
 import (
+	"fmt"
 	"net/http"
 	"sort"
 
@@ -55,6 +56,10 @@ func (tc *TabsController) GetTabs(ctx *gin.Context) {
 		if field.DataSource != "" {
 			if options, err := utils.ResolveOptionsFromDataSource(field.DataSource); err == nil {
 				fieldMap["options"] = options
+				fmt.Print(options)
+			} else {
+				// Log the error to see why options aren't being resolved
+				fmt.Print("Failed to resolve options for field %d: %v", field.ID, err)
 			}
 		}
 

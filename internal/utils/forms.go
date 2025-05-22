@@ -20,10 +20,14 @@ func ResolveOptionsFromDataSource(dataSource string) ([]map[string]interface{}, 
 	valueField := parts[1]
 	labelField := parts[2]
 	var result any
+
 	switch modelName {
 	case constants.COUNTRIES:
 		result = &[]models.Country{}
-
+	case constants.SKILLS:
+		result = &[]models.Skill{}
+	case constants.LANGUAGES:
+		result = &[]models.Language{}
 	default:
 		return nil, fmt.Errorf("unsupported model for datasource: %s", modelName)
 	}
@@ -32,7 +36,6 @@ func ResolveOptionsFromDataSource(dataSource string) ([]map[string]interface{}, 
 		return nil, err
 	}
 
-	// Reflect over result and extract label/value fields
 	v := reflect.ValueOf(result).Elem()
 	options := []map[string]interface{}{}
 

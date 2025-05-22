@@ -178,7 +178,7 @@ func SeedMaidFormFields() {
 		},
 		{
 			Label:          "Skills",
-			FieldKey:       "skills",
+			FieldKey:       "skills.name",
 			ModelName:      constants.MAID,
 			HelpText:       "",
 			FormFieldType:  constants.TypeMultiRelation,

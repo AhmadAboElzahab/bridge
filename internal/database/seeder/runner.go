@@ -5,11 +5,12 @@ import (
 	"strings"
 
 	"github.com/AhmadAboElzahab/bridge/internal/initializers"
+	"github.com/AhmadAboElzahab/bridge/internal/models"
 )
 
 func Run(arg string) {
-	// Connect to the database
 	initializers.ConnectDatabase()
+	db := initializers.DB
 
 	switch strings.ToLower(arg) {
 	case "countries":
@@ -20,10 +21,21 @@ func Run(arg string) {
 		SeedSkills()
 	case "maids":
 		SeedMaidFormFields()
+	case "fakemaids":
+		var langs []models.Language
+		var skills []models.Skill
+
+		db.Find(&langs)
+		db.Find(&skills)
+
+		SeedMaids(db, langs, skills)
 	case "all":
 		SeedCountries()
+		SeedLanguages()
+		SeedSkills()
 		SeedUserFormFields()
 		SeedPatientFormFields()
+		SeedMaidFormFields()
 	default:
 		log.Fatalf("❌ Unknown seed type: %s\n", arg)
 	}

@@ -2,6 +2,7 @@ package base
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"reflect"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/AhmadAboElzahab/bridge/internal/initializers"
 	"github.com/AhmadAboElzahab/bridge/internal/models"
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -29,7 +29,6 @@ func toSnakeCase(str string) string {
 	}
 	return sb.String()
 }
-
 func (c *BaseController) Index(ctx *gin.Context) {
 	type ColumnInput struct {
 		FieldKey string `json:"field_key" binding:"required"`
@@ -40,145 +39,155 @@ func (c *BaseController) Index(ctx *gin.Context) {
 	}
 	type TabPayload struct {
 		TabID   uint                   `json:"tab_id" binding:"required"`
+		Search  string                 `json:"search"`
 		Filters map[string]interface{} `json:"filters" binding:"required"`
 		Columns []ColumnInput          `json:"columns" binding:"required,dive"`
+		Page    int                    `json:"page"`
+		Size    int                    `json:"size"`
 	}
 
 	var input TabPayload
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		errMessages := []string{}
-		if verrs, ok := err.(validator.ValidationErrors); ok {
-			for _, verr := range verrs {
-				field := verr.Field()
-				switch field {
-				case "FieldKey":
-					errMessages = append(errMessages, "Each column must include a valid field_key")
-				default:
-					errMessages = append(errMessages, verr.Namespace()+" is "+verr.Tag())
-				}
-			}
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload", "details": errMessages})
-		} else {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload", "details": []string{err.Error()}})
-		}
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload", "details": err.Error()})
 		return
 	}
+	if input.Page < 0 {
+		input.Page = 0
+	}
+	if input.Size <= 0 || input.Size > 100 {
+		input.Size = 50
+	}
 
+	modelType := reflect.TypeOf(c.Model).Elem()
+	tableName := initializers.DB.NamingStrategy.TableName(modelType.Name())
+
+	// Load tab and save filters
 	var tab models.UserTab
 	if err := initializers.DB.Where("id = ?", input.TabID).First(&tab).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Tab not found"})
 		return
 	}
-
 	filtersJSON, _ := json.Marshal(input.Filters)
 	tab.Filters = filtersJSON
 	initializers.DB.Save(&tab)
 
-	var fields []models.FormField
-	initializers.DB.Where("model_name = ?", tab.ModelName).Find(&fields)
-	fieldKeyMap := map[string]models.FormField{}
-	for _, f := range fields {
-		fieldKeyMap[strings.ToLower(f.FieldKey)] = f
-	}
-
-	inputColumnMap := map[string]ColumnInput{}
-	unknownKeys := []string{}
-	for _, col := range input.Columns {
-		key := strings.ToLower(col.FieldKey)
-		inputColumnMap[key] = col
-		if _, ok := fieldKeyMap[key]; !ok {
-			unknownKeys = append(unknownKeys, col.FieldKey)
-		}
-	}
-
-	missingKeys := []string{}
-	for _, field := range fields {
-		if _, ok := inputColumnMap[strings.ToLower(field.FieldKey)]; !ok {
-			missingKeys = append(missingKeys, field.FieldKey)
-		}
-	}
-
-	if len(unknownKeys) > 0 || len(missingKeys) > 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":          "Invalid column configuration",
-			"unknown_fields": unknownKeys,
-			"missing_fields": missingKeys,
-		})
-		return
-	}
-
-	for _, field := range fields {
-		colInput := inputColumnMap[strings.ToLower(field.FieldKey)]
-		visible := false
-		locked := false
-		order := 0
-		width := 0
-		if colInput.Visible != nil {
-			visible = *colInput.Visible
-		}
-		if colInput.Locked != nil {
-			locked = *colInput.Locked
-		}
-		if colInput.Order != nil {
-			order = *colInput.Order
-		}
-		if colInput.Width != nil {
-			width = *colInput.Width
-		}
-
-		var col models.UserTabColumn
-		if err := initializers.DB.Where("user_tab_id = ? AND form_field_id = ?", tab.ID, field.ID).First(&col).Error; err == nil {
-			col.Visible = visible
-			col.Locked = locked
-			col.Order = order
-			col.Width = width
-			initializers.DB.Save(&col)
-		} else {
-			newCol := models.UserTabColumn{
-				UserTabID:   tab.ID,
-				FormFieldID: field.ID,
-				Visible:     visible,
-				Locked:      locked,
-				Order:       order,
-				Width:       width,
-			}
-			initializers.DB.Create(&newCol)
-		}
-	}
-
+	// Load column visibility
 	var tabColumns []models.UserTabColumn
 	initializers.DB.Preload("FormField").Where("user_tab_id = ?", tab.ID).Find(&tabColumns)
 	visibleFields := map[string]bool{}
 	for _, col := range tabColumns {
 		if col.Visible {
-			visibleFields[toSnakeCase(col.FormField.FieldKey)] = true
+			visibleFields[col.FormField.FieldKey] = true
 		}
 	}
 
-	modelType := reflect.TypeOf(c.Model).Elem()
-	sliceType := reflect.SliceOf(modelType)
-	results := reflect.New(sliceType).Elem()
+	// Build query
+	query := initializers.DB.Table(tableName).
+		Model(c.Model).
+		Preload("Skills").
+		Preload("Languages").
+		Preload("Nationality").
+		Preload(clause.Associations)
 
-	if err := initializers.DB.Preload(clause.Associations).Find(results.Addr().Interface()).Error; err != nil {
+	// Apply filters
+	for key, val := range input.Filters {
+		query = query.Where(fmt.Sprintf("%s.%s = ?", tableName, key), val)
+	}
+
+	// Relation JOIN map
+	relationJoins := map[string]map[string]string{
+		"maids": {
+			"skills":      "LEFT JOIN maid_skills ON maid_skills.maid_id = maids.id LEFT JOIN skills ON skills.id = maid_skills.skill_id",
+			"languages":   "LEFT JOIN maid_languages ON maid_languages.maid_id = maids.id LEFT JOIN languages ON languages.id = maid_languages.language_id",
+			"nationality": "LEFT JOIN countries ON countries.id = maids.nationality_id",
+		},
+	}
+
+	// Dynamic JOIN + text fields
+	textFields := getSearchableTextFields(c.Model)
+	joined := map[string]bool{}
+	if joinMap, ok := relationJoins[tableName]; ok {
+		for _, col := range input.Columns {
+			if strings.Contains(col.FieldKey, ".") {
+				parts := strings.SplitN(col.FieldKey, ".", 2)
+				relation, field := parts[0], parts[1]
+				if joinStmt, exists := joinMap[relation]; exists && !joined[relation] {
+					query = query.Joins(joinStmt)
+					joined[relation] = true
+				}
+				textFields = append(textFields, fmt.Sprintf("%s.%s", relation, field))
+			}
+		}
+		query = query.Group(fmt.Sprintf("%s.id", tableName))
+	}
+
+	// Global search
+	if input.Search != "" && len(textFields) > 0 {
+		var conditions []string
+		var args []interface{}
+		for _, field := range textFields {
+			conditions = append(conditions, fmt.Sprintf("%s ILIKE ?", field))
+			args = append(args, "%"+input.Search+"%")
+		}
+		query = query.Where(strings.Join(conditions, " OR "), args...)
+	}
+
+	// Pagination
+	var total int64
+	query.Count(&total)
+
+	offset := input.Page * input.Size
+	query = query.Offset(offset).Limit(input.Size)
+
+	// Execute
+	modelSlice := reflect.MakeSlice(reflect.SliceOf(modelType), 0, 0)
+	resultPtr := reflect.New(modelSlice.Type()).Interface()
+	if err := query.Find(resultPtr).Error; err != nil {
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": "Failed to fetch records"})
 		return
 	}
 
-	rawJSON, _ := json.Marshal(results.Interface())
+	// Convert to generic JSON
+	rawJSON, _ := json.Marshal(resultPtr)
 	var filtered []map[string]interface{}
 	_ = json.Unmarshal(rawJSON, &filtered)
 
-	for i := range filtered {
-		for k := range filtered[i] {
-			if _, ok := visibleFields[k]; !ok {
-				delete(filtered[i], k)
+	// Response
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": filtered,
+		"meta": gin.H{
+			"totalRowCount": total,
+		},
+	})
+}
+
+func getSearchableTextFields(model any) []string {
+	t := reflect.TypeOf(model).Elem()
+	tableName := initializers.DB.NamingStrategy.TableName(t.Name())
+	var fields []string
+
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if f.Type.Kind() == reflect.String && f.Tag.Get("json") != "-" {
+			column := f.Tag.Get("gorm")
+			if column == "" || !strings.Contains(column, "column:") {
+				column = f.Tag.Get("json")
+			} else {
+				for _, part := range strings.Split(column, ";") {
+					if strings.HasPrefix(part, "column:") {
+						column = strings.TrimPrefix(part, "column:")
+						break
+					}
+				}
 			}
+			if column == "" {
+				column = strings.ToLower(f.Name)
+			}
+			fields = append(fields, fmt.Sprintf("%s.%s", tableName, column))
 		}
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"data": filtered,
-	})
+	return fields
 }
 
 func (c *BaseController) Store(ctx *gin.Context) {}

@@ -3,6 +3,8 @@ package constants
 const (
 	USER      = "User"
 	PATIENT   = "Patient"
-	COUNTRIES = "country"
+	COUNTRIES = "Country"
+	SKILLS    = "Skill"
+	LANGUAGES = "Language"
 	MAID      = "Maid"
 )
