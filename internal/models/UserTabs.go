@@ -12,5 +12,5 @@ type UserTab struct {
 	IsDefault  bool
 	SearchTerm string
 	Filters    datatypes.JSON
-	Columns    []UserTabColumn `gorm:"foreignKey:UserTabID"`
+	Columns    []UserTabColumn `gorm:"foreignKey:UserTabID;constraint:OnDelete:CASCADE"`
 }

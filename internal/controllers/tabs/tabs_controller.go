@@ -1,7 +1,6 @@
 package tabs
 
 import (
-	"fmt"
 	"net/http"
 	"sort"
 
@@ -56,10 +55,6 @@ func (tc *TabsController) GetTabs(ctx *gin.Context) {
 		if field.DataSource != "" {
 			if options, err := utils.ResolveOptionsFromDataSource(field.DataSource); err == nil {
 				fieldMap["options"] = options
-				fmt.Print(options)
-			} else {
-				// Log the error to see why options aren't being resolved
-				fmt.Print("Failed to resolve options for field %d: %v", field.ID, err)
 			}
 		}
 
@@ -89,7 +84,8 @@ func (tc *TabsController) GetTabs(ctx *gin.Context) {
 		for _, col := range tab.Columns {
 			columns = append(columns, gin.H{
 				"form_field_id": col.FormFieldID,
-				"field_key":     col.FormField.FieldKey,
+				"field_key":     col.FieldKey,
+				"label":         col.FormField.Label,
 				"visible":       col.Visible,
 				"locked":        col.Locked,
 				"order":         col.Order,
@@ -147,7 +143,7 @@ func (tc *TabsController) AddNewTab(ctx *gin.Context) {
 	for i, f := range formFields {
 		col := models.UserTabColumn{
 			UserTabID:   newTab.ID,
-			FormFieldID: f.ID,
+			FormFieldID: &f.ID,
 			Visible:     f.TableIsVisible,
 			Locked:      f.TableIsPinned,
 			Order:       i + 1,
