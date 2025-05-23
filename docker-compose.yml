@@ -7,7 +7,7 @@ services:
     ports:
       - "${PORT}:8080" # Match the port in the Dockerfile (8080)
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       - db
     networks:

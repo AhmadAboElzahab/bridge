@@ -1,10 +1,18 @@
-# Use a newer Golang base image (1.24 or later)
+# Use a newer Golang base image
 FROM golang:1.24-alpine
 
-# Set the working directory inside the container
+# Install system dependencies needed for cgo and libwebp
+RUN apk update && apk add --no-cache \
+    gcc \
+    g++ \
+    make \
+    libc-dev \
+    libwebp-dev \
+    libjpeg-turbo-dev \
+    zlib-dev
+
 WORKDIR /app
 
-# Copy go modules and download dependencies
 COPY go.mod go.sum ./
 RUN go mod tidy
 
@@ -14,9 +22,8 @@ RUN go install github.com/air-verse/air@latest
 # Copy the rest of the application code
 COPY . .
 
-# Expose the port your app runs on
+# Expose the port your app will use
 EXPOSE 8080
 
-# Set the default command to run Air with the correct entry point
+# Run the app using Air
 CMD ["air", "-c", ".air.toml"]
-
