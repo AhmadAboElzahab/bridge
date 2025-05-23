@@ -34,7 +34,6 @@ func Run(arg string) {
 		SeedLanguages()
 		SeedSkills()
 		SeedUserFormFields()
-		SeedPatientFormFields()
 		SeedMaidFormFields()
 	default:
 		log.Fatalf("❌ Unknown seed type: %s\n", arg)
