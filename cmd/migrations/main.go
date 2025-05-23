@@ -10,7 +10,6 @@ func init() {
 	initializers.ConnectDatabase()
 }
 func main() {
-	initializers.DB.AutoMigrate(&models.Patient{})
 	initializers.DB.AutoMigrate(&models.User{})
 	initializers.DB.AutoMigrate(&models.User{})
 	initializers.DB.AutoMigrate(&models.Country{})

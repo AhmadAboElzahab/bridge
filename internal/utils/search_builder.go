@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/AhmadAboElzahab/bridge/internal/constants"
 	"github.com/AhmadAboElzahab/bridge/internal/models"
 	"gorm.io/gorm"
 )
@@ -76,7 +77,7 @@ func (s *SearchBuilder) Build() *gorm.DB {
 //   - f: the FormField to process
 func (s *SearchBuilder) processField(f models.FormField) {
 	switch f.FormFieldType {
-	case "multi_relation", "single_relation":
+	case constants.TypeMultiRelation, constants.TypeSingleRelation:
 		parts := strings.Split(f.DataSource, ":")
 		if len(parts) != 3 {
 			return
@@ -90,7 +91,7 @@ func (s *SearchBuilder) processField(f models.FormField) {
 		// Create a unique alias for each relation
 		alias := fmt.Sprintf("%s_%s", relTable, f.FieldKey)
 
-		if f.FormFieldType == "multi_relation" {
+		if f.FormFieldType == constants.TypeMultiRelation {
 			baseSingular := strings.TrimSuffix(s.BaseTable, "s")    // maids → maid
 			pivot := fmt.Sprintf("%s_%s", baseSingular, f.FieldKey) // maid_skills
 			relatedSingular := strings.TrimSuffix(f.FieldKey, "s")  // skills → skill
@@ -108,7 +109,7 @@ func (s *SearchBuilder) processField(f models.FormField) {
 		s.Wheres = append(s.Wheres, fmt.Sprintf("%s.%s ILIKE ?", alias, relLabel))
 		s.Args = append(s.Args, "%"+s.SearchTerm+"%")
 
-	case "string", "email", "rich":
+	case constants.TypeStringField, constants.TypeEmailField, constants.TypeRichField:
 		s.Wheres = append(s.Wheres, fmt.Sprintf("%s.%s ILIKE ?", s.BaseTable, f.FieldKey))
 		s.Args = append(s.Args, "%"+s.SearchTerm+"%")
 	}
