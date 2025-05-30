@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -70,4 +71,25 @@ func ResolveOptionsFromDataSource(dataSource string) ([]map[string]interface{}, 
 	}
 
 	return options, nil
+}
+
+// ResolveOptionsForField returns a slice of {"value", "label"} options from either
+// the static `Options` JSON or a dynamic `DataSource`.
+func ResolveOptionsForField(field models.FormField) ([]map[string]interface{}, error) {
+	// If DataSource is provided → resolve dynamically
+	if field.DataSource != "" {
+		return ResolveOptionsFromDataSource(field.DataSource)
+	}
+
+	// If Options is provided → parse JSON
+	if len(field.Options) > 0 {
+		var opts []map[string]interface{}
+		if err := json.Unmarshal(field.Options, &opts); err != nil {
+			return nil, fmt.Errorf("invalid options JSON for field '%s': %w", field.FieldKey, err)
+		}
+		return opts, nil
+	}
+
+	// Neither options nor datasource
+	return nil, fmt.Errorf("no options or datasource provided for field '%s'", field.FieldKey)
 }

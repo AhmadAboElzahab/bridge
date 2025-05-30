@@ -52,10 +52,8 @@ func (tc *TabsController) GetTabs(ctx *gin.Context) {
 			"table_is_pinned":  field.TableIsPinned,
 		}
 
-		if field.DataSource != "" {
-			if options, err := utils.ResolveOptionsFromDataSource(field.DataSource); err == nil {
-				fieldMap["options"] = options
-			}
+		if options, err := utils.ResolveOptionsForField(field); err == nil {
+			fieldMap["options"] = options
 		}
 
 		formFieldsResponse = append(formFieldsResponse, fieldMap)

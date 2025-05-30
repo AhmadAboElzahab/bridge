@@ -14,7 +14,7 @@ import (
 )
 
 func SeedMaids(db *gorm.DB, languages []models.Language, skills []models.Skill) {
-	const count = 2
+	const count = 500
 	var maids []models.Maid
 
 	for i := 0; i < count; i++ {
