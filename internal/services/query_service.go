@@ -1,8 +1,6 @@
 package services
 
 import (
-	"encoding/json"
-	"fmt"
 	"reflect"
 
 	"github.com/AhmadAboElzahab/bridge/internal/models"
@@ -27,13 +25,12 @@ func QueryModelRecords(
 	tx *gorm.DB,
 	model interface{},
 	input *TabPayload,
-	formFields map[string]models.FormField,
-) ([]map[string]interface{}, int64, error) {
-
+	formFieldsByKey map[string]models.FormField,
+	formFieldsByID map[string]models.FormField,
+) (interface{}, int64, error) {
 	modelType := reflect.TypeOf(model).Elem()
-	modelSlice := reflect.MakeSlice(reflect.SliceOf(modelType), 0, 0)
-	resultPtr := reflect.New(modelSlice.Type()).Interface()
 	modelTable := tx.NamingStrategy.TableName(modelType.Name())
+	slicePtr := reflect.New(reflect.SliceOf(modelType)).Interface()
 
 	query := tx.Model(model).Table(modelTable)
 
@@ -41,34 +38,25 @@ func QueryModelRecords(
 		query = query.Preload(rel)
 	}
 
-	// 🔍 Dynamic search
 	if input.Search != "" {
-		fieldSlice := make([]models.FormField, 0, len(formFields))
-		for _, f := range formFields {
-			fieldSlice = append(fieldSlice, f)
+		ffSlice := make([]models.FormField, 0, len(formFieldsByKey))
+		for _, f := range formFieldsByKey {
+			ffSlice = append(ffSlice, f)
 		}
-		sb := utils.NewSearchBuilder(query, modelTable, fieldSlice, input.Search)
-		query = sb.Build()
+		query = utils.NewSearchBuilder(query, modelTable, ffSlice, input.Search).Build()
 	}
 
-	// 🧪 Filters
-	for k, v := range input.Filters {
-		query = query.Where(fmt.Sprintf("%s.%s = ?", modelTable, k), v)
+	if len(input.Filters) > 0 {
+		query = ApplyFilters(query, input.Filters, formFieldsByID)
 	}
 
-	// 📊 Pagination
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := query.Offset(input.Page * input.Size).Limit(input.Size).Find(resultPtr).Error; err != nil {
+	if err := query.Offset(input.Page * input.Size).Limit(input.Size).Find(slicePtr).Error; err != nil {
 		return nil, 0, err
 	}
 
-	//Convert to JSON then to map[]
-	raw, _ := json.Marshal(resultPtr)
-	var output []map[string]interface{}
-	_ = json.Unmarshal(raw, &output)
-
-	return output, total, nil
+	return slicePtr, total, nil
 }

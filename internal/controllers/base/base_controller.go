@@ -28,7 +28,7 @@ func (c *BaseController) Index(ctx *gin.Context) {
 			return err
 		}
 
-		fieldMap, err := services.LoadFormFields(tx, tab.ModelName)
+		fieldMap, fieldMapByID, err := services.LoadFormFields(tx, tab.ModelName)
 		if err != nil {
 			return err
 		}
@@ -37,7 +37,7 @@ func (c *BaseController) Index(ctx *gin.Context) {
 			return err
 		}
 
-		output, total, err := services.QueryModelRecords(tx, c.Model, input, fieldMap)
+		output, total, err := services.QueryModelRecords(tx, c.Model, input, fieldMap, fieldMapByID)
 		if err != nil {
 			return err
 		}

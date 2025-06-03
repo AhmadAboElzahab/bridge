@@ -22,12 +22,12 @@ type ColumnInput struct {
 // TabPayload encapsulates the tab-related state passed from the frontend,
 // including filters, column settings, pagination, and search input.
 type TabPayload struct {
-	TabID   uint                   `json:"tab_id" binding:"required"`       // ID of the user tab
-	Filters map[string]interface{} `json:"filters" binding:"required"`      // Dynamic filters applied to the grid
-	Columns []ColumnInput          `json:"columns" binding:"required,dive"` // Column configurations for the tab
-	Page    int                    `json:"page"`                            // Page number for pagination
-	Size    int                    `json:"size"`                            // Page size for pagination
-	Search  string                 `json:"search"`                          // Global search term
+	TabID   uint            `json:"tab_id" binding:"required"` // ID of the user tab
+	Filters json.RawMessage `json:"filters" binding:"required"`
+	Columns []ColumnInput   `json:"columns" binding:"required,dive"` // Column configurations for the tab
+	Page    int             `json:"page"`                            // Page number for pagination
+	Size    int             `json:"size"`                            // Page size for pagination
+	Search  string          `json:"search"`                          // Global search term
 }
 
 // BindTabPayload binds and validates a TabPayload from the Gin request body.
@@ -87,16 +87,23 @@ func UpdateTabSettings(tx *gorm.DB, input *TabPayload) (*models.UserTab, error) 
 // Returns:
 //   - map of form field keys to FormField definitions
 //   - error if query fails
-func LoadFormFields(tx *gorm.DB, modelName string) (map[string]models.FormField, error) {
+func LoadFormFields(
+	tx *gorm.DB,
+	modelName string,
+) (map[string]models.FormField, map[string]models.FormField, error) {
 	var fields []models.FormField
 	if err := tx.Where("model_name = ?", modelName).Find(&fields).Error; err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	fieldMap := map[string]models.FormField{}
+
+	byFieldKey := make(map[string]models.FormField)
+	byID := make(map[string]models.FormField)
+
 	for _, f := range fields {
-		fieldMap[f.FieldKey] = f
+		byFieldKey[f.FieldKey] = f
+		byID[fmt.Sprintf("%d", f.ID)] = f
 	}
-	return fieldMap, nil
+	return byFieldKey, byID, nil
 }
 
 // UpsertTabColumns creates or updates user tab column settings based on input.
