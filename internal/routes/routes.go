@@ -3,7 +3,7 @@ package routes
 import (
 	_ "github.com/AhmadAboElzahab/bridge/docs"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/auth"
-	maid "github.com/AhmadAboElzahab/bridge/internal/controllers/miad"
+	maid "github.com/AhmadAboElzahab/bridge/internal/controllers/maid"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/tabs"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/user"
 	"github.com/AhmadAboElzahab/bridge/internal/middlewares"
@@ -18,10 +18,8 @@ func SetupRoutes(r *gin.Engine) {
 	authCtrl := auth.NewAuthController()
 	tabsCtrl := tabs.NewTabsController()
 
-	// Swagger docs
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Public API group
 	api := r.Group("/api")
 
 	// ✅ Public routes
