@@ -1,0 +1,31 @@
+#!/bin/sh
+set -e
+
+# ── 1. Format Go files ──────────────────────────────────────────────────────
+echo "🔍 Formatting Go files..."
+find . -name "*.go" \
+  -not -path "*/vendor/*" \
+  -not -path "*/tmp/*" \
+  -not -path "*/node_modules/*" \
+  -print0 | xargs -0 gofmt -w
+
+# Re-stage any Go files that gofmt changed
+git diff --name-only | grep '\.go$' | xargs git add 2>/dev/null || true
+
+# ── 2. Format JS files with Prettier ────────────────────────────────────────
+if [ -f "node_modules/.bin/prettier" ]; then
+  echo "💅 Formatting JS files..."
+  node_modules/.bin/prettier --write "plopfile.js" 2>/dev/null || true
+  git add plopfile.js 2>/dev/null || true
+fi
+
+# ── 3. Regenerate Swagger docs ───────────────────────────────────────────────
+echo "📚 Regenerating Swagger docs..."
+swag init -g cmd/main.go
+git add docs/
+
+# ── 4. Go vet ────────────────────────────────────────────────────────────────
+echo "🔬 Running go vet..."
+go vet ./...
+
+echo "✅ Pre-commit checks passed"

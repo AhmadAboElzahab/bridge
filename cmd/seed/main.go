@@ -17,6 +17,5 @@ func main() {
 		log.Fatal("Usage: go run cmd/seed/main.go [countries|cities|all]")
 	}
 
-	
 	seeder.Run(os.Args[1])
 }
