@@ -27,16 +27,36 @@ type MaidInput struct {
 	Email     string `json:"email" binding:"required,email"`
 }
 
+// Index godoc
+// @Summary     List maids with filters
+// @Description Query maids with advanced filtering, search, and pagination
+// @Tags        maids
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       body  body  services.TabPayload  true  "Filter and pagination payload"
+// @Success     200   {object}  object{data=[]models.Maid,meta=object{totalRowCount=int64}}
+// @Failure     400   {object}  utils.ErrorResponse
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/maids/index [post]
+func (pc *MaidController) Index(ctx *gin.Context) {
+	pc.BaseController.Index(ctx)
+}
+
 // Store godoc
 // @Summary Create a new maid
 // @Description Create a new maid with first name and email
 // @Tags maids
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param maid body MaidInput true "Maid data"
 // @Success 201 {object} models.Maid
 // @Failure 400 {object} utils.ErrorResponse
-// @Router /maids [post]
+// @Failure 401 {object} utils.ErrorResponse
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /api/maids [post]
 func (pc *MaidController) Store(ctx *gin.Context) {
 	var input MaidInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
@@ -62,10 +82,13 @@ func (pc *MaidController) Store(ctx *gin.Context) {
 // @Description Get a single maid using their ID
 // @Tags maids
 // @Produce json
+// @Security BearerAuth
 // @Param id path int true "Maid ID"
 // @Success 200 {object} models.Maid
+// @Failure 401 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
-// @Router /maids/{id} [get]
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /api/maids/{id} [get]
 func (pc *MaidController) Show(ctx *gin.Context) {
 	pc.BaseController.Show(ctx)
 }
@@ -76,24 +99,31 @@ func (pc *MaidController) Show(ctx *gin.Context) {
 // @Tags maids
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param id path int true "Maid ID"
 // @Param maid body MaidInput true "Updated maid data"
 // @Success 200 {object} models.Maid
 // @Failure 400 {object} utils.ErrorResponse
+// @Failure 401 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
-// @Router /maids/{id} [put]
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /api/maids/{id} [put]
 func (pc *MaidController) Update(ctx *gin.Context) {
 	pc.BaseController.Update(ctx)
 }
 
 // Delete godoc
 // @Summary Delete a maid
-// @Description Delete a maid by ID
+// @Description Delete a maid by ID (soft delete)
 // @Tags maids
+// @Produce json
+// @Security BearerAuth
 // @Param id path int true "Maid ID"
-// @Success 200 {object} string
+// @Success 200 {object} object{message=string}
+// @Failure 401 {object} utils.ErrorResponse
 // @Failure 404 {object} utils.ErrorResponse
-// @Router /maids/{id} [delete]
+// @Failure 500 {object} utils.ErrorResponse
+// @Router /api/maids/{id} [delete]
 func (pc *MaidController) Delete(ctx *gin.Context) {
 	pc.BaseController.Delete(ctx)
 }

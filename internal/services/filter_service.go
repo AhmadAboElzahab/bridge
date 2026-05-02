@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/AhmadAboElzahab/bridge/internal/models"
@@ -28,70 +27,57 @@ func applyGroupFilters(db *gorm.DB, group models.FilterGroup, fields map[string]
 	}
 
 	if group.Conjunction == "or" {
-		var conditions []string
-		var values []interface{}
+		var orParts []*gorm.DB
 
 		for _, raw := range group.Children {
 			childJSON, _ := json.Marshal(raw)
+			// Each OR part gets a fresh statement so sub-conditions don't bleed into siblings.
+			partDB := db.Session(&gorm.Session{NewDB: true})
 
 			if rawMap, ok := raw.(map[string]interface{}); ok && rawMap["type"] == "GROUP" {
 				var subgroup models.FilterGroup
 				if err := json.Unmarshal(childJSON, &subgroup); err != nil {
 					continue
 				}
-				// For nested groups in OR, we need special handling
-				// For now, skip nested groups or implement recursively
+				partDB = applyGroupFilters(partDB, subgroup, fields)
+			} else {
+				var item models.FilterItem
+				if err := json.Unmarshal(childJSON, &item); err != nil {
+					continue
+				}
+				partDB = applyItemFilter(partDB, item, fields)
+			}
+
+			orParts = append(orParts, partDB)
+		}
+
+		if len(orParts) > 0 {
+			combined := orParts[0]
+			for _, part := range orParts[1:] {
+				combined = combined.Or(part)
+			}
+			db = db.Where(combined)
+		}
+
+		return db
+	}
+
+	// AND conjunction — apply each child's conditions sequentially
+	for _, raw := range group.Children {
+		childJSON, _ := json.Marshal(raw)
+
+		if rawMap, ok := raw.(map[string]interface{}); ok && rawMap["type"] == "GROUP" {
+			var subgroup models.FilterGroup
+			if err := json.Unmarshal(childJSON, &subgroup); err != nil {
 				continue
-			} else {
-				var item models.FilterItem
-				if err := json.Unmarshal(childJSON, &item); err != nil {
-					continue
-				}
-
-				field, ok := fields[fmt.Sprintf("%d", item.FieldID)]
-				if !ok {
-					continue
-				}
-
-				column := resolveColumnName(field)
-				value := normalizeValue(extractActualValue(item.Value))
-
-				condition, conditionValue := buildCondition(column, item.Operator.Value, value, item.SecondOperator)
-				if condition != "" {
-					conditions = append(conditions, condition)
-					if conditionValue != nil {
-						if slice, ok := conditionValue.([]interface{}); ok {
-							values = append(values, slice...)
-						} else {
-							values = append(values, conditionValue)
-						}
-					}
-				}
 			}
-		}
-
-		if len(conditions) > 0 {
-			orClause := fmt.Sprintf("(%s)", strings.Join(conditions, " OR "))
-			db = db.Where(orClause, values...)
-		}
-	} else {
-		// AND conjunction
-		for _, raw := range group.Children {
-			childJSON, _ := json.Marshal(raw)
-
-			if rawMap, ok := raw.(map[string]interface{}); ok && rawMap["type"] == "GROUP" {
-				var subgroup models.FilterGroup
-				if err := json.Unmarshal(childJSON, &subgroup); err != nil {
-					continue
-				}
-				db = applyGroupFilters(db, subgroup, fields)
-			} else {
-				var item models.FilterItem
-				if err := json.Unmarshal(childJSON, &item); err != nil {
-					continue
-				}
-				db = applyItemFilter(db, item, fields)
+			db = applyGroupFilters(db, subgroup, fields)
+		} else {
+			var item models.FilterItem
+			if err := json.Unmarshal(childJSON, &item); err != nil {
+				continue
 			}
+			db = applyItemFilter(db, item, fields)
 		}
 	}
 
@@ -232,7 +218,6 @@ func extractActualValue(val interface{}) interface{} {
 }
 
 func normalizeValue(val interface{}) interface{} {
-	// Convert float64 to int if it's a whole number (common with JSON unmarshaling)
 	if floatVal, ok := val.(float64); ok && floatVal == float64(int(floatVal)) {
 		return int(floatVal)
 	}

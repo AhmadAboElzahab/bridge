@@ -160,8 +160,8 @@ func generateJWT(userID uint, duration time.Duration) (string, error) {
 	claims := &Claims{
 		UserID: userID,
 		StandardClaims: jwt.StandardClaims{
-			// ExpiresAt: time.Now().Add(duration).Unix(),
-			IssuedAt: time.Now().Unix(),
+			ExpiresAt: time.Now().Add(duration).Unix(),
+			IssuedAt:  time.Now().Unix(),
 		},
 	}
 

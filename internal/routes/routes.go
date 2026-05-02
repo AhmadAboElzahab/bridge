@@ -53,5 +53,7 @@ func SetupRoutes(r *gin.Engine) {
 	{
 		tabsRoutes.GET("", tabsCtrl.GetTabs)
 		tabsRoutes.POST("", tabsCtrl.AddNewTab)
+		tabsRoutes.PUT("/:id", tabsCtrl.UpdateTab)
+		tabsRoutes.DELETE("/:id", tabsCtrl.DeleteTab)
 	}
 }

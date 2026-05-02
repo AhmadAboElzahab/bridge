@@ -1,6 +1,7 @@
 package base
 
 import (
+	"errors"
 	"net/http"
 	"reflect"
 
@@ -60,25 +61,21 @@ func discoverRelations(t reflect.Type) map[string]reflect.Type {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 
-		// Skip unexported fields or embedded structs
 		if !field.IsExported() || field.Anonymous {
 			continue
 		}
 
-		// Skip GORM internal and time fields
 		if field.Type.String() == "gorm.DeletedAt" || field.Type.PkgPath() == "gorm.io/gorm" || field.Type.PkgPath() == "time" {
 			continue
 		}
 
 		kind := field.Type.Kind()
 
-		// Handle slices: many-to-many or one-to-many
 		if kind == reflect.Slice && field.Type.Elem().Kind() == reflect.Struct {
 			relations[field.Name] = field.Type
 			continue
 		}
 
-		// Handle structs: one-to-one or many-to-one
 		if kind == reflect.Struct && field.Type.Name() != "" && field.Type.PkgPath() != "" {
 			relations[field.Name] = field.Type
 		}
@@ -91,31 +88,60 @@ func (c *BaseController) Store(ctx *gin.Context) {}
 
 func (c *BaseController) Show(ctx *gin.Context) {
 	id := ctx.Param("id")
-	modelInstance := c.Model
-	result := initializers.DB.First(modelInstance, id)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			ctx.JSON(404, gin.H{"error": "Resource not found"})
+	if err := initializers.DB.First(c.Model, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorJSON(ctx, http.StatusNotFound, "Resource not found")
 		} else {
-			ctx.JSON(500, gin.H{"error": result.Error.Error()})
+			utils.ErrorJSON(ctx, http.StatusInternalServerError, "Database error", err.Error())
 		}
 		return
 	}
-	ctx.JSON(200, modelInstance)
+	ctx.JSON(http.StatusOK, c.Model)
 }
 
-func (c *BaseController) Update(ctx *gin.Context) {}
+func (c *BaseController) Update(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if err := initializers.DB.First(c.Model, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorJSON(ctx, http.StatusNotFound, "Resource not found")
+		} else {
+			utils.ErrorJSON(ctx, http.StatusInternalServerError, "Database error", err.Error())
+		}
+		return
+	}
+
+	var updates map[string]interface{}
+	if err := ctx.ShouldBindJSON(&updates); err != nil {
+		utils.ErrorJSON(ctx, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	for _, field := range []string{"id", "created_at", "updated_at", "deleted_at", "password", "password_hash"} {
+		delete(updates, field)
+	}
+
+	if err := initializers.DB.Model(c.Model).Updates(updates).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to update", err.Error())
+		return
+	}
+
+	initializers.DB.First(c.Model, id)
+	ctx.JSON(http.StatusOK, c.Model)
+}
 
 func (c *BaseController) Delete(ctx *gin.Context) {
 	id := ctx.Param("id")
-	modelInstance := c.Model
-	if err := initializers.DB.First(modelInstance, id).Error; err != nil {
-		ctx.JSON(404, gin.H{"error": "Resource not found"})
+	if err := initializers.DB.First(c.Model, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorJSON(ctx, http.StatusNotFound, "Resource not found")
+		} else {
+			utils.ErrorJSON(ctx, http.StatusInternalServerError, "Database error", err.Error())
+		}
 		return
 	}
-	if err := initializers.DB.Delete(modelInstance).Error; err != nil {
-		ctx.JSON(500, gin.H{"error": "Failed to delete resource"})
+	if err := initializers.DB.Delete(c.Model).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to delete resource", err.Error())
 		return
 	}
-	ctx.JSON(200, gin.H{"message": "Resource deleted successfully"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Resource deleted successfully"})
 }

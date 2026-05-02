@@ -17,22 +17,41 @@ func NewTabsController() *TabsController {
 	return &TabsController{}
 }
 
-// GET /api/tabs?model=Patient
+// CreateTabInput is the request body for creating a new tab.
+type CreateTabInput struct {
+	ModelName string `json:"model_name" binding:"required"`
+	TabName   string `json:"tab_name" binding:"required"`
+}
+
+// UpdateTabInput is the request body for renaming a tab.
+type UpdateTabInput struct {
+	TabName string `json:"tab_name" binding:"required"`
+}
+
+// GetTabs godoc
+// @Summary     Get form fields and user tabs
+// @Description Returns form field metadata and the authenticated user's tab configurations for a given model
+// @Tags        tabs
+// @Produce     json
+// @Security    BearerAuth
+// @Param       model  query   string  true  "Model name (e.g. Maid)"
+// @Success     200    {object}  object{form_fields=[]object,tabs=[]object}
+// @Failure     401    {object}  utils.ErrorResponse
+// @Failure     500    {object}  utils.ErrorResponse
+// @Router      /api/tabs [get]
 func (tc *TabsController) GetTabs(ctx *gin.Context) {
 	userID := ctx.MustGet("userID").(uint)
 	model := ctx.Query("model")
 
-	// Load shared form field metadata
 	var formFields []models.FormField
 	if err := initializers.DB.
 		Where("model_name = ?", model).
 		Order("field_order ASC").
 		Find(&formFields).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load form fields"})
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to load form fields", err.Error())
 		return
 	}
 
-	// Resolve options for fields with data sources
 	formFieldsResponse := []gin.H{}
 	for _, field := range formFields {
 		fieldMap := gin.H{
@@ -59,7 +78,6 @@ func (tc *TabsController) GetTabs(ctx *gin.Context) {
 		formFieldsResponse = append(formFieldsResponse, fieldMap)
 	}
 
-	// Load user tabs with column settings
 	var tabs []models.UserTab
 	result := initializers.DB.
 		Preload("Columns.FormField").
@@ -110,16 +128,26 @@ func (tc *TabsController) GetTabs(ctx *gin.Context) {
 		"tabs":        tabsResponse,
 	})
 }
+
+// AddNewTab godoc
+// @Summary     Create a new tab
+// @Description Creates a new table view tab for the authenticated user
+// @Tags        tabs
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       body  body    CreateTabInput  true  "Tab creation data"
+// @Success     201   {object}  object{message=string,tab_id=int}
+// @Failure     400   {object}  utils.ErrorResponse
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/tabs [post]
 func (tc *TabsController) AddNewTab(ctx *gin.Context) {
 	userID := ctx.MustGet("userID").(uint)
-	type CreateTabInput struct {
-		ModelName string `json:"model_name" binding:"required"`
-		TabName   string `json:"tab_name" binding:"required"`
-	}
 
 	var input CreateTabInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload", "details": err.Error()})
+		utils.ErrorJSON(ctx, http.StatusBadRequest, "Invalid payload", err.Error())
 		return
 	}
 
@@ -132,7 +160,7 @@ func (tc *TabsController) AddNewTab(ctx *gin.Context) {
 		Filters:    datatypes.JSON([]byte(`{}`)),
 	}
 	if err := initializers.DB.Create(&newTab).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user tab"})
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to create tab", err.Error())
 		return
 	}
 
@@ -154,45 +182,73 @@ func (tc *TabsController) AddNewTab(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, gin.H{"message": "New tab created", "tab_id": newTab.ID})
 }
 
-// PUT /api/tabs/:id
+// UpdateTab godoc
+// @Summary     Rename a tab
+// @Description Updates the name of a user's tab
+// @Tags        tabs
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       id    path    int            true  "Tab ID"
+// @Param       body  body    UpdateTabInput true  "New tab name"
+// @Success     200   {object}  object{message=string}
+// @Failure     400   {object}  utils.ErrorResponse
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     404   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/tabs/{id} [put]
 func (tc *TabsController) UpdateTab(ctx *gin.Context) {
 	userID := ctx.MustGet("userID").(uint)
 	tabID := ctx.Param("id")
 
 	var tab models.UserTab
 	if err := initializers.DB.Where("id = ? AND user_id = ?", tabID, userID).First(&tab).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Tab not found"})
+		utils.ErrorJSON(ctx, http.StatusNotFound, "Tab not found")
 		return
 	}
 
-	var input struct {
-		TabName string `json:"tab_name" binding:"required"`
-	}
+	var input UpdateTabInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload", "details": err.Error()})
+		utils.ErrorJSON(ctx, http.StatusBadRequest, "Invalid payload", err.Error())
 		return
 	}
 
 	tab.TabName = input.TabName
 	if err := initializers.DB.Save(&tab).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update tab name"})
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to update tab", err.Error())
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "Tab name updated successfully"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Tab updated successfully"})
 }
+
+// DeleteTab godoc
+// @Summary     Delete a tab
+// @Description Deletes a user's tab and all its column configurations
+// @Tags        tabs
+// @Produce     json
+// @Security    BearerAuth
+// @Param       id    path    int  true  "Tab ID"
+// @Success     200   {object}  object{message=string}
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     404   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/tabs/{id} [delete]
 func (tc *TabsController) DeleteTab(ctx *gin.Context) {
 	userID := ctx.MustGet("userID").(uint)
 	tabID := ctx.Param("id")
 
 	var tab models.UserTab
 	if err := initializers.DB.Where("id = ? AND user_id = ?", tabID, userID).First(&tab).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Tab not found"})
+		utils.ErrorJSON(ctx, http.StatusNotFound, "Tab not found")
 		return
 	}
 
-	initializers.DB.Where("user_tab_id = ?", tab.ID).Delete(&models.UserTabColumn{})
-	initializers.DB.Delete(&tab)
+	// Columns cascade-delete via the OnDelete:CASCADE constraint on UserTabColumn.UserTabID
+	if err := initializers.DB.Delete(&tab).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to delete tab", err.Error())
+		return
+	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Tab deleted successfully"})
 }

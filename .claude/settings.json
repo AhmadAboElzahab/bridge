@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'input=$(cat 2>/dev/null); if echo \"$input\" | grep -q \"/controllers/\"; then echo \"REMINDER: Handler file modified — run: swag init\"; fi'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'input=$(cat 2>/dev/null); if echo \"$input\" | grep -qE '\"'\"'git commit'\"'\"'; then cd /Users/ahmadabu-alzahab/Developer/bridge && go vet ./... || exit 2; fi'"
+          }
+        ]
+      }
+    ]
+  }
+}
