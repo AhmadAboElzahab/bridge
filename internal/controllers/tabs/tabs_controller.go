@@ -142,6 +142,7 @@ func (tc *TabsController) AddNewTab(ctx *gin.Context) {
 		col := models.UserTabColumn{
 			UserTabID:   newTab.ID,
 			FormFieldID: &f.ID,
+			FieldKey:    f.FieldKey,
 			Visible:     f.TableIsVisible,
 			Locked:      f.TableIsPinned,
 			Order:       i + 1,
