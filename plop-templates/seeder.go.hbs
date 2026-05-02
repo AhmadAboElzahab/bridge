@@ -1,0 +1,39 @@
+package seeder
+
+import (
+	"log"
+
+	"github.com/AhmadAboElzahab/bridge/internal/initializers"
+	"github.com/AhmadAboElzahab/bridge/internal/models"
+)
+
+func Seed{{name}}FormFields() {
+	fields := []models.FormField{
+		// TODO: define your form fields here.
+		// See internal/database/seeder/maids_form_fields.go for a full example.
+		// Import "github.com/AhmadAboElzahab/bridge/internal/constants" for field type constants.
+		//
+		// {
+		// 	Label:          "Email",
+		// 	FieldKey:       "email",
+		// 	ModelName:      "{{name}}",
+		// 	FormFieldType:  constants.TypeEmailField,
+		// 	FormWidth:      2,
+		// 	FormOrder:      1,
+		// 	FormStage:      "info",
+		// 	FormIsRequired: true,
+		// 	TableIsVisible: true,
+		// 	TableOrder:     1,
+		// },
+	}
+
+	for _, f := range fields {
+		if err := initializers.DB.
+			Where("field_key = ? AND model_name = ?", f.FieldKey, f.ModelName).
+			FirstOrCreate(&f).Error; err != nil {
+			log.Printf("Failed to seed %s.%s: %v\n", f.ModelName, f.FieldKey, err)
+		}
+	}
+
+	log.Println("✅ {{name}} form fields seeded")
+}

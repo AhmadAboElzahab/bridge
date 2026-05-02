@@ -25,3 +25,6 @@ go.work.sum
 .env
 .env.docker
 /storage
+
+# Node
+node_modules/

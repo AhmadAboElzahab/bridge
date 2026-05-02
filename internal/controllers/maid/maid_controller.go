@@ -34,8 +34,8 @@ type MaidInput struct {
 // @Accept      json
 // @Produce     json
 // @Security    BearerAuth
-// @Param       body  body  services.TabPayload  true  "Filter and pagination payload"
-// @Success     200   {object}  object{data=[]models.Maid,meta=object{totalRowCount=int64}}
+// @Param       body  body  object  true  "Filter and pagination payload (TabPayload)"
+// @Success     200   {object}  object{data=[]object,meta=object{totalRowCount=int64}}
 // @Failure     400   {object}  utils.ErrorResponse
 // @Failure     401   {object}  utils.ErrorResponse
 // @Failure     500   {object}  utils.ErrorResponse

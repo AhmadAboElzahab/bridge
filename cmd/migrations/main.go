@@ -19,5 +19,5 @@ func main() {
 	initializers.DB.AutoMigrate(&models.Language{})
 	initializers.DB.AutoMigrate(&models.Skill{})
 	initializers.DB.AutoMigrate(&models.Maid{})
-
+	// plop:models
 }

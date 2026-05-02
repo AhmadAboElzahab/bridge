@@ -1,0 +1,124 @@
+package {{camelCase name}}
+
+import (
+	"net/http"
+
+	"github.com/AhmadAboElzahab/bridge/internal/controllers/base"
+	"github.com/AhmadAboElzahab/bridge/internal/initializers"
+	"github.com/AhmadAboElzahab/bridge/internal/models"
+	"github.com/AhmadAboElzahab/bridge/internal/utils"
+	"github.com/gin-gonic/gin"
+)
+
+type {{name}}Controller struct {
+	base.BaseController
+}
+
+func New{{name}}Controller() *{{name}}Controller {
+	return &{{name}}Controller{
+		BaseController: base.BaseController{Model: &models.{{name}}{}},
+	}
+}
+
+// {{name}}Input is the request body for creating or updating a {{name}}.
+// TODO: fill in your input fields
+type {{name}}Input struct {
+}
+
+// Index godoc
+// @Summary     List {{plural}} with filters
+// @Description Query {{plural}} with advanced filtering, search, and pagination
+// @Tags        {{plural}}
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       body  body  object  true  "Filter and pagination payload (TabPayload)"
+// @Success     200   {object}  object{data=[]object,meta=object{totalRowCount=int64}}
+// @Failure     400   {object}  utils.ErrorResponse
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/{{plural}}/index [post]
+func (c *{{name}}Controller) Index(ctx *gin.Context) {
+	c.BaseController.Index(ctx)
+}
+
+// Store godoc
+// @Summary     Create a {{name}}
+// @Description Create a new {{name}}
+// @Tags        {{plural}}
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       body  body  {{name}}Input  true  "{{name}} data"
+// @Success     201   {object}  models.{{name}}
+// @Failure     400   {object}  utils.ErrorResponse
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/{{plural}} [post]
+func (c *{{name}}Controller) Store(ctx *gin.Context) {
+	var input {{name}}Input
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		utils.ErrorJSON(ctx, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	// TODO: map input fields to model
+	record := models.{{name}}{}
+
+	if err := initializers.DB.Create(&record).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to create {{name}}", err.Error())
+		return
+	}
+	ctx.JSON(http.StatusCreated, record)
+}
+
+// Show godoc
+// @Summary     Get a {{name}} by ID
+// @Description Get a single {{name}} by ID
+// @Tags        {{plural}}
+// @Produce     json
+// @Security    BearerAuth
+// @Param       id    path    int  true  "{{name}} ID"
+// @Success     200   {object}  models.{{name}}
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     404   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/{{plural}}/{id} [get]
+func (c *{{name}}Controller) Show(ctx *gin.Context) {
+	c.BaseController.Show(ctx)
+}
+
+// Update godoc
+// @Summary     Update a {{name}}
+// @Description Update {{name}} fields by ID
+// @Tags        {{plural}}
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       id    path    int           true  "{{name}} ID"
+// @Param       body  body    {{name}}Input true  "Fields to update"
+// @Success     200   {object}  models.{{name}}
+// @Failure     400   {object}  utils.ErrorResponse
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     404   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/{{plural}}/{id} [put]
+func (c *{{name}}Controller) Update(ctx *gin.Context) {
+	c.BaseController.Update(ctx)
+}
+
+// Delete godoc
+// @Summary     Delete a {{name}}
+// @Description Delete a {{name}} by ID (soft delete)
+// @Tags        {{plural}}
+// @Produce     json
+// @Security    BearerAuth
+// @Param       id    path    int  true  "{{name}} ID"
+// @Success     200   {object}  object{message=string}
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     404   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/{{plural}}/{id} [delete]
+func (c *{{name}}Controller) Delete(ctx *gin.Context) {
+	c.BaseController.Delete(ctx)
+}

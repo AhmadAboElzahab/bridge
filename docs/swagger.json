@@ -137,41 +137,14 @@
                 }
             }
         },
-        "/api/patients/{id}": {
-            "delete": {
-                "description": "Delete a patient by ID",
-                "tags": [
-                    "patients"
-                ],
-                "summary": "Delete a patient",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Patient ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/patients": {
+        "/api/maids": {
             "post": {
-                "description": "Create a new patient with first name and email",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new maid with first name and email",
                 "consumes": [
                     "application/json"
                 ],
@@ -179,17 +152,17 @@
                     "application/json"
                 ],
                 "tags": [
-                    "patients"
+                    "maids"
                 ],
-                "summary": "Create a new patient",
+                "summary": "Create a new maid",
                 "parameters": [
                     {
-                        "description": "Patient data",
-                        "name": "patient",
+                        "description": "Maid data",
+                        "name": "maid",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/patient.PatientInput"
+                            "$ref": "#/definitions/maid.MaidInput"
                         }
                     }
                 ],
@@ -197,11 +170,23 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.Patient"
+                            "$ref": "#/definitions/models.Maid"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -209,42 +194,14 @@
                 }
             }
         },
-        "/patients/{id}": {
-            "get": {
-                "description": "Get a single patient using their ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "patients"
-                ],
-                "summary": "Get a patient by ID",
-                "parameters": [
+        "/api/maids/index": {
+            "post": {
+                "security": [
                     {
-                        "type": "integer",
-                        "description": "Patient ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
+                        "BearerAuth": []
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Patient"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Update patient information by ID",
+                "description": "Query maids with advanced filtering, search, and pagination",
                 "consumes": [
                     "application/json"
                 ],
@@ -252,24 +209,17 @@
                     "application/json"
                 ],
                 "tags": [
-                    "patients"
+                    "maids"
                 ],
-                "summary": "Update a patient",
+                "summary": "List maids with filters",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Patient ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Updated patient data",
-                        "name": "patient",
+                        "description": "Filter and pagination payload (TabPayload)",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/patient.PatientInput"
+                            "type": "object"
                         }
                     }
                 ],
@@ -277,7 +227,24 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Patient"
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                },
+                                "meta": {
+                                    "type": "object",
+                                    "properties": {
+                                        "totalRowCount": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            }
                         }
                     },
                     "400": {
@@ -286,8 +253,754 @@
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/maids/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a single maid using their ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "maids"
+                ],
+                "summary": "Get a maid by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Maid ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Maid"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update maid information by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "maids"
+                ],
+                "summary": "Update a maid",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Maid ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated maid data",
+                        "name": "maid",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/maid.MaidInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Maid"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a maid by ID (soft delete)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "maids"
+                ],
+                "summary": "Delete a maid",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Maid ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tabs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns form field metadata and the authenticated user's tab configurations for a given model",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tabs"
+                ],
+                "summary": "Get form fields and user tabs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Model name (e.g. Maid)",
+                        "name": "model",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "form_fields": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                },
+                                "tabs": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new table view tab for the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tabs"
+                ],
+                "summary": "Create a new tab",
+                "parameters": [
+                    {
+                        "description": "Tab creation data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/tabs.CreateTabInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "tab_id": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tabs/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the name of a user's tab",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tabs"
+                ],
+                "summary": "Rename a tab",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tab ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New tab name",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/tabs.UpdateTabInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a user's tab and all its column configurations",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tabs"
+                ],
+                "summary": "Delete a tab",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tab ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/users": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new user with first name and email",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Create a user",
+                "parameters": [
+                    {
+                        "description": "User data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.UserInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.User"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/users/index": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Query users with advanced filtering, search, and pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "List users with filters",
+                "parameters": [
+                    {
+                        "description": "Filter and pagination payload (TabPayload)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                },
+                                "meta": {
+                                    "type": "object",
+                                    "properties": {
+                                        "totalRowCount": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/users/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a single user by their ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get a user by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.User"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update user fields by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Update a user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.UserInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.User"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a user by ID (soft delete)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Delete a user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorResponse"
                         }
@@ -312,27 +1025,203 @@
                 }
             }
         },
-        "models.Patient": {
-            "description": "Patient entity with ID, first name, and email",
+        "maid.MaidInput": {
+            "type": "object",
+            "required": [
+                "email",
+                "first_name"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Country": {
             "type": "object",
             "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.Language": {
+            "type": "object",
+            "properties": {
+                "iso639_3": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.Maid": {
+            "type": "object",
+            "properties": {
+                "auto_renew": {
+                    "type": "boolean"
+                },
+                "availability": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "care_giver_certificate": {
+                    "type": "boolean"
+                },
                 "created_at": {
                     "type": "string"
                 },
+                "current_location": {
+                    "type": "string"
+                },
+                "date_of_birth": {
+                    "type": "string"
+                },
                 "email": {
-                    "type": "string",
-                    "example": "john@example.com"
+                    "type": "string"
+                },
+                "expected_salary": {
+                    "type": "number"
+                },
+                "first_aid_certificate": {
+                    "type": "boolean"
                 },
                 "first_name": {
-                    "type": "string",
-                    "example": "John"
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
                 },
                 "id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
+                },
+                "is_email_verified": {
+                    "type": "boolean"
+                },
+                "is_phone_verified": {
+                    "type": "boolean"
+                },
+                "is_profile_visible": {
+                    "type": "boolean"
+                },
+                "languages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Language"
+                    }
+                },
+                "last_login_at": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "nationality": {
+                    "$ref": "#/definitions/models.Country"
+                },
+                "nationality_id": {
+                    "type": "integer"
+                },
+                "notify_on_interest": {
+                    "type": "boolean"
+                },
+                "notify_on_message": {
+                    "type": "boolean"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "preferred_work_location": {
+                    "type": "string"
+                },
+                "profile_completion_percentage": {
+                    "type": "integer"
+                },
+                "profile_picture": {
+                    "type": "string"
+                },
+                "profile_picture_hash": {
+                    "type": "string"
+                },
+                "religion": {
+                    "type": "string"
+                },
+                "skills": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Skill"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "subscription_end_date": {
+                    "type": "string"
+                },
+                "subscription_failed_attempts": {
+                    "type": "integer"
+                },
+                "subscription_last_payment_date": {
+                    "type": "string"
+                },
+                "subscription_payment_gateway_id": {
+                    "type": "string"
+                },
+                "subscription_plan": {
+                    "type": "string"
+                },
+                "subscription_start_date": {
+                    "type": "string"
+                },
+                "subscription_status": {
+                    "type": "string"
+                },
+                "teaching_certificate": {
+                    "type": "boolean"
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "video_introduction": {
+                    "type": "string"
+                },
+                "visa_status": {
+                    "type": "string"
+                },
+                "whatsapp_number": {
+                    "type": "string"
+                },
+                "work_preferences": {
+                    "type": "string"
+                },
+                "years_of_experience": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.Skill": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
                 }
             }
         },
@@ -376,7 +1265,33 @@
                 }
             }
         },
-        "patient.PatientInput": {
+        "tabs.CreateTabInput": {
+            "type": "object",
+            "required": [
+                "model_name",
+                "tab_name"
+            ],
+            "properties": {
+                "model_name": {
+                    "type": "string"
+                },
+                "tab_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "tabs.UpdateTabInput": {
+            "type": "object",
+            "required": [
+                "tab_name"
+            ],
+            "properties": {
+                "tab_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.UserInput": {
             "type": "object",
             "required": [
                 "email",
@@ -394,7 +1309,16 @@
         "utils.ErrorResponse": {
             "type": "object",
             "properties": {
+                "code": {
+                    "description": "Optional error code for frontend",
+                    "type": "string"
+                },
+                "details": {
+                    "description": "Optional detailed explanation",
+                    "type": "string"
+                },
                 "error": {
+                    "description": "Human-readable error message",
                     "type": "string"
                 }
             }

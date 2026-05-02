@@ -1,0 +1,10 @@
+{
+  "name": "bridge",
+  "private": true,
+  "scripts": {
+    "plop": "plop"
+  },
+  "devDependencies": {
+    "plop": "^3.1.2"
+  }
+}

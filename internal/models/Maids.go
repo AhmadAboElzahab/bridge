@@ -54,7 +54,7 @@ type Maid struct {
 	LastLoginAt                 *time.Time     `json:"last_login_at"`
 	CreatedAt                   time.Time      `json:"created_at"`
 	UpdatedAt                   time.Time      `json:"updated_at"`
-	DeletedAt                   gorm.DeletedAt `json:"deleted_at" gorm:"index"`
+	DeletedAt                   gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index" swaggerignore:"true"`
 
 	FirstAidCertificate  bool `json:"first_aid_certificate"`
 	CareGiverCertificate bool `json:"care_giver_certificate"`

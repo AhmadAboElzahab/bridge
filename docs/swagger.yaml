@@ -9,22 +9,137 @@ definitions:
     - email
     - password
     type: object
-  models.Patient:
-    description: Patient entity with ID, first name, and email
+  maid.MaidInput:
     properties:
-      created_at:
-        type: string
       email:
-        example: john@example.com
         type: string
       first_name:
-        example: John
+        type: string
+    required:
+    - email
+    - first_name
+    type: object
+  models.Country:
+    properties:
+      code:
+        type: string
+      label:
+        type: string
+      value:
+        type: integer
+    type: object
+  models.Language:
+    properties:
+      iso639_3:
+        type: string
+      label:
+        type: string
+      value:
+        type: integer
+    type: object
+  models.Maid:
+    properties:
+      auto_renew:
+        type: boolean
+      availability:
+        type: string
+      bio:
+        type: string
+      care_giver_certificate:
+        type: boolean
+      created_at:
+        type: string
+      current_location:
+        type: string
+      date_of_birth:
+        type: string
+      email:
+        type: string
+      expected_salary:
+        type: number
+      first_aid_certificate:
+        type: boolean
+      first_name:
+        type: string
+      gender:
         type: string
       id:
-        example: 1
         type: integer
+      is_email_verified:
+        type: boolean
+      is_phone_verified:
+        type: boolean
+      is_profile_visible:
+        type: boolean
+      languages:
+        items:
+          $ref: '#/definitions/models.Language'
+        type: array
+      last_login_at:
+        type: string
+      last_name:
+        type: string
+      nationality:
+        $ref: '#/definitions/models.Country'
+      nationality_id:
+        type: integer
+      notify_on_interest:
+        type: boolean
+      notify_on_message:
+        type: boolean
+      phone_number:
+        type: string
+      preferred_work_location:
+        type: string
+      profile_completion_percentage:
+        type: integer
+      profile_picture:
+        type: string
+      profile_picture_hash:
+        type: string
+      religion:
+        type: string
+      skills:
+        items:
+          $ref: '#/definitions/models.Skill'
+        type: array
+      status:
+        type: string
+      subscription_end_date:
+        type: string
+      subscription_failed_attempts:
+        type: integer
+      subscription_last_payment_date:
+        type: string
+      subscription_payment_gateway_id:
+        type: string
+      subscription_plan:
+        type: string
+      subscription_start_date:
+        type: string
+      subscription_status:
+        type: string
+      teaching_certificate:
+        type: boolean
       updated_at:
         type: string
+      video_introduction:
+        type: string
+      visa_status:
+        type: string
+      whatsapp_number:
+        type: string
+      work_preferences:
+        type: string
+      years_of_experience:
+        type: integer
+    type: object
+  models.Skill:
+    properties:
+      label:
+        type: string
+      value:
+        type: integer
     type: object
   models.User:
     description: User entity with ID, first name, last name, email, password, date
@@ -56,7 +171,24 @@ definitions:
       updated_at:
         type: string
     type: object
-  patient.PatientInput:
+  tabs.CreateTabInput:
+    properties:
+      model_name:
+        type: string
+      tab_name:
+        type: string
+    required:
+    - model_name
+    - tab_name
+    type: object
+  tabs.UpdateTabInput:
+    properties:
+      tab_name:
+        type: string
+    required:
+    - tab_name
+    type: object
+  user.UserInput:
     properties:
       email:
         type: string
@@ -68,7 +200,14 @@ definitions:
     type: object
   utils.ErrorResponse:
     properties:
+      code:
+        description: Optional error code for frontend
+        type: string
+      details:
+        description: Optional detailed explanation
+        type: string
       error:
+        description: Human-readable error message
         type: string
     type: object
 info:
@@ -163,58 +302,47 @@ paths:
       summary: User Signup
       tags:
       - Auth
-  /api/patients/{id}:
-    delete:
-      description: Delete a patient by ID
-      parameters:
-      - description: Patient ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: string
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.ErrorResponse'
-      summary: Delete a patient
-      tags:
-      - patients
-  /patients:
+  /api/maids:
     post:
       consumes:
       - application/json
-      description: Create a new patient with first name and email
+      description: Create a new maid with first name and email
       parameters:
-      - description: Patient data
+      - description: Maid data
         in: body
-        name: patient
+        name: maid
         required: true
         schema:
-          $ref: '#/definitions/patient.PatientInput'
+          $ref: '#/definitions/maid.MaidInput'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.Patient'
+            $ref: '#/definitions/models.Maid'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
-      summary: Create a new patient
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new maid
       tags:
-      - patients
-  /patients/{id}:
-    get:
-      description: Get a single patient using their ID
+      - maids
+  /api/maids/{id}:
+    delete:
+      description: Delete a maid by ID (soft delete)
       parameters:
-      - description: Patient ID
+      - description: Maid ID
         in: path
         name: id
         required: true
@@ -225,46 +353,509 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Patient'
+            properties:
+              message:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
-      summary: Get a patient by ID
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a maid
       tags:
-      - patients
+      - maids
+    get:
+      description: Get a single maid using their ID
+      parameters:
+      - description: Maid ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Maid'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a maid by ID
+      tags:
+      - maids
     put:
       consumes:
       - application/json
-      description: Update patient information by ID
+      description: Update maid information by ID
       parameters:
-      - description: Patient ID
+      - description: Maid ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Updated patient data
+      - description: Updated maid data
         in: body
-        name: patient
+        name: maid
         required: true
         schema:
-          $ref: '#/definitions/patient.PatientInput'
+          $ref: '#/definitions/maid.MaidInput'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Patient'
+            $ref: '#/definitions/models.Maid'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
         "404":
           description: Not Found
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
-      summary: Update a patient
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a maid
       tags:
-      - patients
+      - maids
+  /api/maids/index:
+    post:
+      consumes:
+      - application/json
+      description: Query maids with advanced filtering, search, and pagination
+      parameters:
+      - description: Filter and pagination payload (TabPayload)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  type: object
+                type: array
+              meta:
+                properties:
+                  totalRowCount:
+                    format: int64
+                    type: integer
+                type: object
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List maids with filters
+      tags:
+      - maids
+  /api/tabs:
+    get:
+      description: Returns form field metadata and the authenticated user's tab configurations
+        for a given model
+      parameters:
+      - description: Model name (e.g. Maid)
+        in: query
+        name: model
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              form_fields:
+                items:
+                  type: object
+                type: array
+              tabs:
+                items:
+                  type: object
+                type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get form fields and user tabs
+      tags:
+      - tabs
+    post:
+      consumes:
+      - application/json
+      description: Creates a new table view tab for the authenticated user
+      parameters:
+      - description: Tab creation data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/tabs.CreateTabInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              message:
+                type: string
+              tab_id:
+                type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new tab
+      tags:
+      - tabs
+  /api/tabs/{id}:
+    delete:
+      description: Deletes a user's tab and all its column configurations
+      parameters:
+      - description: Tab ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a tab
+      tags:
+      - tabs
+    put:
+      consumes:
+      - application/json
+      description: Updates the name of a user's tab
+      parameters:
+      - description: Tab ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New tab name
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/tabs.UpdateTabInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Rename a tab
+      tags:
+      - tabs
+  /api/users:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user with first name and email
+      parameters:
+      - description: User data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.UserInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a user
+      tags:
+      - users
+  /api/users/{id}:
+    delete:
+      description: Delete a user by ID (soft delete)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a user
+      tags:
+      - users
+    get:
+      description: Get a single user by their ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.User'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a user by ID
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update user fields by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.UserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a user
+      tags:
+      - users
+  /api/users/index:
+    post:
+      consumes:
+      - application/json
+      description: Query users with advanced filtering, search, and pagination
+      parameters:
+      - description: Filter and pagination payload (TabPayload)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  type: object
+                type: array
+              meta:
+                properties:
+                  totalRowCount:
+                    format: int64
+                    type: integer
+                type: object
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List users with filters
+      tags:
+      - users
 swagger: "2.0"

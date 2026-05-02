@@ -7,6 +7,7 @@ import (
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/tabs"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/user"
 	"github.com/AhmadAboElzahab/bridge/internal/middlewares"
+	// plop:imports
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -17,6 +18,7 @@ func SetupRoutes(r *gin.Engine) {
 	maidCtrl := maid.NewMaidController()
 	authCtrl := auth.NewAuthController()
 	tabsCtrl := tabs.NewTabsController()
+	// plop:controllers
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -49,6 +51,7 @@ func SetupRoutes(r *gin.Engine) {
 		maids.PUT("/:id", maidCtrl.Update)
 		maids.DELETE("/:id", maidCtrl.Delete)
 	}
+
 	tabsRoutes := protected.Group("/tabs")
 	{
 		tabsRoutes.GET("", tabsCtrl.GetTabs)
@@ -56,4 +59,5 @@ func SetupRoutes(r *gin.Engine) {
 		tabsRoutes.PUT("/:id", tabsCtrl.UpdateTab)
 		tabsRoutes.DELETE("/:id", tabsCtrl.DeleteTab)
 	}
+	// plop:routes
 }
