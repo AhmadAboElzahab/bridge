@@ -13,6 +13,7 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o bridge ./cmd/main.go
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o migrate ./cmd/migrations/main.go
 
 # ── Production ────────────────────────────────────────────────────────────────
 FROM alpine:3.19
@@ -22,11 +23,14 @@ RUN apk add --no-cache libwebp libjpeg-turbo ca-certificates
 WORKDIR /app
 
 COPY --from=builder /app/bridge .
+COPY --from=builder /app/migrate .
 COPY --from=builder /app/docs ./docs
 COPY --from=builder /app/static ./static
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 RUN mkdir -p storage
 
 EXPOSE 8080
 
-CMD ["./bridge"]
+CMD ["./entrypoint.sh"]
