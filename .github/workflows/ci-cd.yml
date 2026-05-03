@@ -56,7 +56,7 @@ jobs:
 
       - name: Deploy
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -vvv -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
             "cd ${{ secrets.APP_DIR }} && \
              printf 'PORT=8080\nDB_URL=${{ secrets.DB_URL }}\nPOSTGRES_USER=${{ secrets.POSTGRES_USER }}\nPOSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}\nPOSTGRES_DB=${{ secrets.POSTGRES_DB }}\nJWT_SECRET=${{ secrets.JWT_SECRET }}\nGIN_MODE=release\n' > .env.docker && \
              git pull origin main && \
