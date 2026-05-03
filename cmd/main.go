@@ -26,7 +26,7 @@ func main() {
 
 	router.Use(gin.Logger())
 
-	router.Static("/storage", "../../storage")
+	router.Static("/storage", "./storage")
 
 	// ✅ Setup all routes
 	routes.SetupRoutes(router)

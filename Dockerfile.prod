@@ -1,0 +1,32 @@
+# ── Builder ──────────────────────────────────────────────────────────────────
+FROM golang:1.24-alpine AS builder
+
+RUN apk add --no-cache \
+    gcc g++ make libc-dev \
+    libwebp-dev libjpeg-turbo-dev zlib-dev
+
+WORKDIR /app
+
+COPY go.mod go.sum go.work go.work.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o bridge ./cmd/main.go
+
+# ── Production ────────────────────────────────────────────────────────────────
+FROM alpine:3.19
+
+RUN apk add --no-cache libwebp libjpeg-turbo ca-certificates
+
+WORKDIR /app
+
+COPY --from=builder /app/bridge .
+COPY --from=builder /app/docs ./docs
+COPY --from=builder /app/static ./static
+
+RUN mkdir -p storage
+
+EXPOSE 8080
+
+CMD ["./bridge"]
