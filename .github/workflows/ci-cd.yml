@@ -44,37 +44,18 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Add server to known hosts
-        run: ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy
-        env:
-          DB_URL: ${{ secrets.DB_URL }}
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          APP_DIR: ${{ secrets.APP_DIR }}
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
         run: |
-          ssh $SERVER_USER@$SERVER_HOST << EOF
-            cd $APP_DIR
-            cat > .env.docker << ENVEOF
-          PORT=8080
-          DB_URL=$DB_URL
-          POSTGRES_USER=$POSTGRES_USER
-          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
-          POSTGRES_DB=$POSTGRES_DB
-          JWT_SECRET=$JWT_SECRET
-          GIN_MODE=release
-          ENVEOF
-            git pull origin main
-            docker compose -f docker-compose.prod.yml up -d --build
-            docker image prune -f
-          EOF
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "cd ${{ secrets.APP_DIR }} && \
+             printf 'PORT=8080\nDB_URL=${{ secrets.DB_URL }}\nPOSTGRES_USER=${{ secrets.POSTGRES_USER }}\nPOSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}\nPOSTGRES_DB=${{ secrets.POSTGRES_DB }}\nJWT_SECRET=${{ secrets.JWT_SECRET }}\nGIN_MODE=release\n' > .env.docker && \
+             git pull origin main && \
+             docker compose -f docker-compose.prod.yml up -d --build && \
+             docker image prune -f"
