@@ -50,8 +50,24 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DB_URL,POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,JWT_SECRET
           script: |
             cd ${{ secrets.APP_DIR }}
+            cat > .env.docker << EOF
+            PORT=8080
+            DB_URL=$DB_URL
+            POSTGRES_USER=$POSTGRES_USER
+            POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+            POSTGRES_DB=$POSTGRES_DB
+            JWT_SECRET=$JWT_SECRET
+            GIN_MODE=release
+            EOF
             git pull origin main
             docker compose -f docker-compose.prod.yml up -d --build
             docker image prune -f
+        env:
+          DB_URL: ${{ secrets.DB_URL }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
