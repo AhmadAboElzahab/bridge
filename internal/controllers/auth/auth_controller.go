@@ -2,8 +2,6 @@ package auth
 
 import (
 	"errors"
-	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -47,8 +45,6 @@ func NewAuthController() *AuthController {
 //	@Failure		500				{object}	utils.ErrorResponse
 //	@Router			/api/auth/signup [post]
 func (uc *AuthController) Signup(ctx *gin.Context) {
-	fmt.Println("Binding error:", "sad") // Log the exact error
-
 	var body struct {
 		FirstName   string `form:"first_name" binding:"required"`
 		LastName    string `form:"last_name"`
@@ -58,34 +54,31 @@ func (uc *AuthController) Signup(ctx *gin.Context) {
 	}
 
 	if err := ctx.ShouldBind(&body); err != nil {
-		fmt.Println("Binding error:", err) // Log the exact error
-		log.Println("Binding error:", err)
-
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse{Error: err.Error()})
+		utils.ErrorJSON(ctx, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
 	var user models.User
-	if err := initializers.DB.Where("email = ?", body.Email).First(&user).Error; err == nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse{Error: "Email already exists"})
+	if err := db.Where("email = ?", body.Email).First(&user).Error; err == nil {
+		utils.ErrorWithCodeJSON(ctx, http.StatusConflict, "EMAIL_EXISTS", "Email already exists")
 		return
 	}
 
 	var savePath, hash string
 	file, err := ctx.FormFile("avatar")
-	if err == nil { // If no file is provided, we skip the upload process
+	if err == nil {
 		savePath, hash, err = utils.ProcessImageUpload(file, "./storage/users")
 		if err != nil {
-			fmt.Println("Binding error:", err) // Log the exact error
-			log.Println("Binding error:", err)
-			ctx.JSON(http.StatusBadRequest, utils.ErrorResponse{Error: err.Error()})
+			utils.ErrorJSON(ctx, http.StatusBadRequest, "Failed to process image", err.Error())
 			return
 		}
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse{Error: "Failed to hash password"})
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to hash password")
 		return
 	}
 
@@ -99,8 +92,8 @@ func (uc *AuthController) Signup(ctx *gin.Context) {
 		Blurhash:    hash,
 	}
 
-	if err := initializers.DB.Create(&newUser).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse{Error: "Failed to create user"})
+	if err := db.Create(&newUser).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to create user")
 		return
 	}
 
@@ -123,30 +116,31 @@ func (uc *AuthController) Signup(ctx *gin.Context) {
 func (uc *AuthController) Signin(ctx *gin.Context) {
 	var body SigninRequest
 	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse{Error: err.Error()})
+		utils.ErrorJSON(ctx, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
 	var user models.User
-	result := initializers.DB.Where("email = ?", body.Email).First(&user)
+	result := db.Where("email = ?", body.Email).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse{Error: "Invalid email or password"})
+			utils.ErrorJSON(ctx, http.StatusUnauthorized, "Invalid email or password")
 		} else {
-			ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse{Error: "Database error"})
+			utils.ErrorJSON(ctx, http.StatusInternalServerError, "Database error")
 		}
 		return
 	}
 
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
-	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, utils.ErrorResponse{Error: "Invalid email or password"})
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)); err != nil {
+		utils.ErrorJSON(ctx, http.StatusUnauthorized, "Invalid email or password")
 		return
 	}
 
-	newAccessToken, err := generateJWT(user.ID, 15*time.Minute)
+	newAccessToken, err := generateJWT(user.ID, 24*time.Hour)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse{Error: "Failed to generate JWT"})
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to generate JWT")
 		return
 	}
 
@@ -157,17 +151,17 @@ func (uc *AuthController) Signin(ctx *gin.Context) {
 }
 
 func generateJWT(userID uint, duration time.Duration) (string, error) {
-	claims := &Claims{
-		UserID: userID,
-		StandardClaims: jwt.StandardClaims{
-			// ExpiresAt: time.Now().Add(duration).Unix(),
-			IssuedAt: time.Now().Unix(),
-		},
-	}
-
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return "", errors.New("JWT_SECRET is not set")
+	}
+
+	claims := &Claims{
+		UserID: userID,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(duration).Unix(),
+			IssuedAt:  time.Now().Unix(),
+		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

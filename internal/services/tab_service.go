@@ -32,10 +32,6 @@ type TabPayload struct {
 
 // BindTabPayload binds and validates a TabPayload from the Gin request body.
 // It also sets sane defaults for pagination values if missing or invalid.
-//
-// Returns:
-//   - a pointer to the parsed TabPayload
-//   - an error if the JSON body is invalid
 func BindTabPayload(ctx *gin.Context) (*TabPayload, error) {
 	var input TabPayload
 	if err := ctx.ShouldBindJSON(&input); err != nil {
@@ -50,16 +46,7 @@ func BindTabPayload(ctx *gin.Context) (*TabPayload, error) {
 	return &input, nil
 }
 
-// UpdateTabSettings updates the user tab's filters and search term in the database
-// based on the input TabPayload.
-//
-// Parameters:
-//   - tx: GORM transaction instance
-//   - input: TabPayload with tab ID, filters, and search
-//
-// Returns:
-//   - updated UserTab record
-//   - error if tab not found or update fails
+// UpdateTabSettings updates the user tab's filters and search term in the database.
 func UpdateTabSettings(tx *gorm.DB, input *TabPayload) (*models.UserTab, error) {
 	var tab models.UserTab
 	if err := tx.First(&tab, input.TabID).Error; err != nil {
@@ -77,16 +64,7 @@ func UpdateTabSettings(tx *gorm.DB, input *TabPayload) (*models.UserTab, error) 
 	return &tab, nil
 }
 
-// LoadFormFields retrieves all FormField definitions for a given model name,
-// returning them as a map from field key to FormField object.
-//
-// Parameters:
-//   - tx: GORM DB instance
-//   - modelName: name of the target model (e.g., "Maid")
-//
-// Returns:
-//   - map of form field keys to FormField definitions
-//   - error if query fails
+// LoadFormFields retrieves all FormField definitions for a given model name.
 func LoadFormFields(
 	tx *gorm.DB,
 	modelName string,
@@ -96,8 +74,8 @@ func LoadFormFields(
 		return nil, nil, err
 	}
 
-	byFieldKey := make(map[string]models.FormField)
-	byID := make(map[string]models.FormField)
+	byFieldKey := make(map[string]models.FormField, len(fields))
+	byID := make(map[string]models.FormField, len(fields))
 
 	for _, f := range fields {
 		byFieldKey[f.FieldKey] = f
@@ -106,40 +84,77 @@ func LoadFormFields(
 	return byFieldKey, byID, nil
 }
 
-// UpsertTabColumns creates or updates user tab column settings based on input.
-// It ensures each column is tied to the correct FormField and UserTab.
-//
-// Parameters:
-//   - tx: GORM DB transaction
-//   - tabID: the ID of the user tab being updated
-//   - columns: slice of column settings to upsert
-//   - fieldMap: map of field keys to FormField definitions
-//
-// Returns:
-//   - error if a field key is invalid or the database operation fails
+// UpsertTabColumns creates or updates user tab column settings.
+// Uses a single SELECT + batch INSERT/UPDATE strategy instead of N individual queries.
 func UpsertTabColumns(tx *gorm.DB, tabID uint, columns []ColumnInput, fieldMap map[string]models.FormField) error {
+	if len(columns) == 0 {
+		return nil
+	}
+
+	// Single query to fetch all existing columns for this tab
+	var existing []models.UserTabColumn
+	if err := tx.Where("user_tab_id = ?", tabID).Find(&existing).Error; err != nil {
+		return err
+	}
+	existingByFieldID := make(map[uint]*models.UserTabColumn, len(existing))
+	for i := range existing {
+		if existing[i].FormFieldID != nil {
+			existingByFieldID[*existing[i].FormFieldID] = &existing[i]
+		}
+	}
+
+	var toCreate []models.UserTabColumn
+	var toUpdate []models.UserTabColumn
+
 	for _, col := range columns {
 		ff, ok := fieldMap[col.FieldKey]
 		if !ok {
 			return fmt.Errorf("invalid field_key: %s", col.FieldKey)
 		}
-		var tc models.UserTabColumn
-		tx.Where("user_tab_id = ? AND form_field_id = ?", tabID, ff.ID).FirstOrInit(&tc)
-		tc.UserTabID = tabID
-		tc.FormFieldID = &ff.ID
-		if col.Visible != nil {
-			tc.Visible = *col.Visible
+
+		if tc, exists := existingByFieldID[ff.ID]; exists {
+			if col.Visible != nil {
+				tc.Visible = *col.Visible
+			}
+			if col.Locked != nil {
+				tc.Locked = *col.Locked
+			}
+			if col.Order != nil {
+				tc.Order = *col.Order
+			}
+			if col.Width != nil {
+				tc.Width = *col.Width
+			}
+			toUpdate = append(toUpdate, *tc)
+		} else {
+			tc := models.UserTabColumn{
+				UserTabID:   tabID,
+				FormFieldID: &ff.ID,
+				FieldKey:    col.FieldKey,
+			}
+			if col.Visible != nil {
+				tc.Visible = *col.Visible
+			}
+			if col.Locked != nil {
+				tc.Locked = *col.Locked
+			}
+			if col.Order != nil {
+				tc.Order = *col.Order
+			}
+			if col.Width != nil {
+				tc.Width = *col.Width
+			}
+			toCreate = append(toCreate, tc)
 		}
-		if col.Locked != nil {
-			tc.Locked = *col.Locked
+	}
+
+	if len(toCreate) > 0 {
+		if err := tx.Create(&toCreate).Error; err != nil {
+			return err
 		}
-		if col.Order != nil {
-			tc.Order = *col.Order
-		}
-		if col.Width != nil {
-			tc.Width = *col.Width
-		}
-		if err := tx.Save(&tc).Error; err != nil {
+	}
+	for i := range toUpdate {
+		if err := tx.Save(&toUpdate[i]).Error; err != nil {
 			return err
 		}
 	}

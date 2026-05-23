@@ -66,14 +66,16 @@ func (uc *UserController) Store(ctx *gin.Context) {
 		return
 	}
 
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
 	var existing models.User
-	if err := initializers.DB.Where("email = ?", input.Email).First(&existing).Error; err == nil {
+	if err := db.Where("email = ?", input.Email).First(&existing).Error; err == nil {
 		utils.ErrorWithCodeJSON(ctx, http.StatusConflict, "EMAIL_EXISTS", "Email already in use")
 		return
 	}
 
 	user := models.User{FirstName: input.FirstName, Email: input.Email}
-	if err := initializers.DB.Create(&user).Error; err != nil {
+	if err := db.Create(&user).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to create user", err.Error())
 		return
 	}

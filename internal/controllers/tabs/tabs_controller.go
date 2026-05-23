@@ -4,11 +4,13 @@ import (
 	"net/http"
 	"sort"
 
+	"github.com/AhmadAboElzahab/bridge/internal/constants"
 	"github.com/AhmadAboElzahab/bridge/internal/initializers"
 	"github.com/AhmadAboElzahab/bridge/internal/models"
 	"github.com/AhmadAboElzahab/bridge/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type TabsController struct{}
@@ -28,6 +30,11 @@ type UpdateTabInput struct {
 	TabName string `json:"tab_name" binding:"required"`
 }
 
+var validModels = map[string]bool{
+	constants.MAID: true,
+	constants.USER: true,
+}
+
 // GetTabs godoc
 // @Summary     Get form fields and user tabs
 // @Description Returns form field metadata and the authenticated user's tab configurations for a given model
@@ -36,6 +43,7 @@ type UpdateTabInput struct {
 // @Security    BearerAuth
 // @Param       model  query   string  true  "Model name (e.g. Maid)"
 // @Success     200    {object}  object{form_fields=[]object,tabs=[]object}
+// @Failure     400    {object}  utils.ErrorResponse
 // @Failure     401    {object}  utils.ErrorResponse
 // @Failure     500    {object}  utils.ErrorResponse
 // @Router      /api/tabs [get]
@@ -43,16 +51,20 @@ func (tc *TabsController) GetTabs(ctx *gin.Context) {
 	userID := ctx.MustGet("userID").(uint)
 	model := ctx.Query("model")
 
+	if !validModels[model] {
+		utils.ErrorJSON(ctx, http.StatusBadRequest, "Invalid model name")
+		return
+	}
+
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
 	var formFields []models.FormField
-	if err := initializers.DB.
-		Where("model_name = ?", model).
-		Order("field_order ASC").
-		Find(&formFields).Error; err != nil {
+	if err := db.Where("model_name = ?", model).Order("field_order ASC").Find(&formFields).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to load form fields", err.Error())
 		return
 	}
 
-	formFieldsResponse := []gin.H{}
+	formFieldsResponse := make([]gin.H, 0, len(formFields))
 	for _, field := range formFields {
 		fieldMap := gin.H{
 			"id":               field.ID,
@@ -79,24 +91,31 @@ func (tc *TabsController) GetTabs(ctx *gin.Context) {
 	}
 
 	var tabs []models.UserTab
-	result := initializers.DB.
-		Preload("Columns.FormField").
+	if err := db.Preload("Columns.FormField").
 		Where("user_id = ? AND model_name = ?", userID, model).
 		Order("is_default DESC, id ASC").
-		Find(&tabs)
-
-	if result.RowsAffected == 0 {
-		utils.CreateDefaultTabsForUserModel(userID, model)
-		initializers.DB.
-			Preload("Columns.FormField").
-			Where("user_id = ? AND model_name = ?", userID, model).
-			Order("is_default DESC, id ASC").
-			Find(&tabs)
+		Find(&tabs).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to load tabs", err.Error())
+		return
 	}
 
-	tabsResponse := []gin.H{}
+	if len(tabs) == 0 {
+		if err := utils.CreateDefaultTabsForUserModel(db, userID, model); err != nil {
+			utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to initialize tabs", err.Error())
+			return
+		}
+		if err := db.Preload("Columns.FormField").
+			Where("user_id = ? AND model_name = ?", userID, model).
+			Order("is_default DESC, id ASC").
+			Find(&tabs).Error; err != nil {
+			utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to reload tabs", err.Error())
+			return
+		}
+	}
+
+	tabsResponse := make([]gin.H, 0, len(tabs))
 	for _, tab := range tabs {
-		columns := []gin.H{}
+		columns := make([]gin.H, 0, len(tab.Columns))
 		for _, col := range tab.Columns {
 			columns = append(columns, gin.H{
 				"form_field_id": col.FormFieldID,
@@ -151,35 +170,57 @@ func (tc *TabsController) AddNewTab(ctx *gin.Context) {
 		return
 	}
 
-	newTab := models.UserTab{
-		UserID:     userID,
-		ModelName:  input.ModelName,
-		TabName:    input.TabName,
-		IsDefault:  false,
-		SearchTerm: "",
-		Filters:    datatypes.JSON([]byte(`{}`)),
+	if !validModels[input.ModelName] {
+		utils.ErrorJSON(ctx, http.StatusBadRequest, "Invalid model name")
+		return
 	}
-	if err := initializers.DB.Create(&newTab).Error; err != nil {
+
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
+	var tabID uint
+	err := db.Transaction(func(tx *gorm.DB) error {
+		newTab := models.UserTab{
+			UserID:     userID,
+			ModelName:  input.ModelName,
+			TabName:    input.TabName,
+			IsDefault:  false,
+			SearchTerm: "",
+			Filters:    datatypes.JSON([]byte(`{}`)),
+		}
+		if err := tx.Create(&newTab).Error; err != nil {
+			return err
+		}
+		tabID = newTab.ID
+
+		var formFields []models.FormField
+		if err := tx.Where("model_name = ?", input.ModelName).Find(&formFields).Error; err != nil {
+			return err
+		}
+
+		columns := make([]models.UserTabColumn, 0, len(formFields))
+		for i, f := range formFields {
+			fieldID := f.ID
+			columns = append(columns, models.UserTabColumn{
+				UserTabID:   newTab.ID,
+				FormFieldID: &fieldID,
+				FieldKey:    f.FieldKey,
+				Visible:     f.TableIsVisible,
+				Locked:      f.TableIsPinned,
+				Order:       i + 1,
+				Width:       f.FormWidth,
+			})
+		}
+		if len(columns) > 0 {
+			return tx.Create(&columns).Error
+		}
+		return nil
+	})
+	if err != nil {
 		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to create tab", err.Error())
 		return
 	}
 
-	var formFields []models.FormField
-	initializers.DB.Where("model_name = ?", input.ModelName).Find(&formFields)
-	for i, f := range formFields {
-		col := models.UserTabColumn{
-			UserTabID:   newTab.ID,
-			FormFieldID: &f.ID,
-			FieldKey:    f.FieldKey,
-			Visible:     f.TableIsVisible,
-			Locked:      f.TableIsPinned,
-			Order:       i + 1,
-			Width:       f.FormWidth,
-		}
-		initializers.DB.Create(&col)
-	}
-
-	ctx.JSON(http.StatusCreated, gin.H{"message": "New tab created", "tab_id": newTab.ID})
+	ctx.JSON(http.StatusCreated, gin.H{"message": "New tab created", "tab_id": tabID})
 }
 
 // UpdateTab godoc
@@ -201,8 +242,10 @@ func (tc *TabsController) UpdateTab(ctx *gin.Context) {
 	userID := ctx.MustGet("userID").(uint)
 	tabID := ctx.Param("id")
 
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
 	var tab models.UserTab
-	if err := initializers.DB.Where("id = ? AND user_id = ?", tabID, userID).First(&tab).Error; err != nil {
+	if err := db.Where("id = ? AND user_id = ?", tabID, userID).First(&tab).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusNotFound, "Tab not found")
 		return
 	}
@@ -214,7 +257,7 @@ func (tc *TabsController) UpdateTab(ctx *gin.Context) {
 	}
 
 	tab.TabName = input.TabName
-	if err := initializers.DB.Save(&tab).Error; err != nil {
+	if err := db.Save(&tab).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to update tab", err.Error())
 		return
 	}
@@ -238,14 +281,16 @@ func (tc *TabsController) DeleteTab(ctx *gin.Context) {
 	userID := ctx.MustGet("userID").(uint)
 	tabID := ctx.Param("id")
 
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
 	var tab models.UserTab
-	if err := initializers.DB.Where("id = ? AND user_id = ?", tabID, userID).First(&tab).Error; err != nil {
+	if err := db.Where("id = ? AND user_id = ?", tabID, userID).First(&tab).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusNotFound, "Tab not found")
 		return
 	}
 
 	// Columns cascade-delete via the OnDelete:CASCADE constraint on UserTabColumn.UserTabID
-	if err := initializers.DB.Delete(&tab).Error; err != nil {
+	if err := db.Delete(&tab).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to delete tab", err.Error())
 		return
 	}

@@ -69,8 +69,8 @@ func (pc *MaidController) Store(ctx *gin.Context) {
 		Email:     input.Email,
 	}
 
-	if err := initializers.DB.Create(&maid).Error; err != nil {
-		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse{Error: "Failed to create maid"})
+	if err := initializers.DB.WithContext(ctx.Request.Context()).Create(&maid).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to create maid", err.Error())
 		return
 	}
 

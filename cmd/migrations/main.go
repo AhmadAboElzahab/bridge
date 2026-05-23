@@ -11,7 +11,6 @@ func init() {
 }
 func main() {
 	initializers.DB.AutoMigrate(&models.User{})
-	initializers.DB.AutoMigrate(&models.User{})
 	initializers.DB.AutoMigrate(&models.Country{})
 	initializers.DB.AutoMigrate(&models.FormField{})
 	initializers.DB.AutoMigrate(&models.UserTab{})

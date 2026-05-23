@@ -3,51 +3,52 @@ package utils
 import (
 	"fmt"
 
-	"github.com/AhmadAboElzahab/bridge/internal/initializers"
 	"github.com/AhmadAboElzahab/bridge/internal/models"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 // CreateDefaultTabsForUserModel initializes a default "All" tab for a user and model,
 // pre-populating it with column settings based on the model's FormField metadata.
-//
-// It inserts a new UserTab row with default filter/search settings,
-// and adds corresponding UserTabColumn entries using each FormField's visibility,
-// pinned state, and form width.
-//
-// Parameters:
-//   - userID: ID of the user for whom the tab is being created
-//   - model: name of the model (e.g., "Maid", "Driver") to create a tab for
-func CreateDefaultTabsForUserModel(userID uint, model string) {
-	var formFields []models.FormField
-	initializers.DB.
-		Where("model_name = ?", model).
-		Order("field_order ASC").
-		Find(&formFields)
-
-	tab := models.UserTab{
-		UserID:     userID,
-		ModelName:  model,
-		TabName:    "All " + model + "s",
-		IsDefault:  true,
-		SearchTerm: "",
-		Filters:    datatypes.JSON([]byte(`{}`)),
-	}
-	initializers.DB.Create(&tab)
-
-	for i, field := range formFields {
-		fmt.Printf("Creating column: FieldKey=%q, FormFieldID=%d\n", field.FieldKey, field.ID)
-
-		column := models.UserTabColumn{
-			UserTabID:   tab.ID,
-			FormFieldID: &field.ID,
-			FieldKey:    field.FieldKey,
-			Visible:     field.TableIsVisible,
-			Locked:      field.TableIsPinned,
-			Order:       i + 1,
-			Width:       field.FormWidth,
+func CreateDefaultTabsForUserModel(db *gorm.DB, userID uint, model string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		var formFields []models.FormField
+		if err := tx.Where("model_name = ?", model).Order("field_order ASC").Find(&formFields).Error; err != nil {
+			return fmt.Errorf("failed to load form fields: %w", err)
 		}
-		initializers.DB.Create(&column)
-		fmt.Printf(">> Final FieldKey before insert: %q\n", column.FieldKey)
-	}
+
+		tab := models.UserTab{
+			UserID:     userID,
+			ModelName:  model,
+			TabName:    "All " + model + "s",
+			IsDefault:  true,
+			SearchTerm: "",
+			Filters:    datatypes.JSON([]byte(`{}`)),
+		}
+		if err := tx.Create(&tab).Error; err != nil {
+			return fmt.Errorf("failed to create default tab: %w", err)
+		}
+
+		columns := make([]models.UserTabColumn, 0, len(formFields))
+		for i, field := range formFields {
+			fieldID := field.ID
+			columns = append(columns, models.UserTabColumn{
+				UserTabID:   tab.ID,
+				FormFieldID: &fieldID,
+				FieldKey:    field.FieldKey,
+				Visible:     field.TableIsVisible,
+				Locked:      field.TableIsPinned,
+				Order:       i + 1,
+				Width:       field.FormWidth,
+			})
+		}
+
+		if len(columns) > 0 {
+			if err := tx.Create(&columns).Error; err != nil {
+				return fmt.Errorf("failed to create default tab columns: %w", err)
+			}
+		}
+
+		return nil
+	})
 }

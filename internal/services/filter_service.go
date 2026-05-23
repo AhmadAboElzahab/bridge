@@ -30,19 +30,25 @@ func applyGroupFilters(db *gorm.DB, group models.FilterGroup, fields map[string]
 		var orParts []*gorm.DB
 
 		for _, raw := range group.Children {
-			childJSON, _ := json.Marshal(raw)
+			childJSON, err := json.Marshal(raw)
+			if err != nil {
+				log.Println("Failed to marshal OR child filter:", err)
+				continue
+			}
 			// Each OR part gets a fresh statement so sub-conditions don't bleed into siblings.
 			partDB := db.Session(&gorm.Session{NewDB: true})
 
 			if rawMap, ok := raw.(map[string]interface{}); ok && rawMap["type"] == "GROUP" {
 				var subgroup models.FilterGroup
 				if err := json.Unmarshal(childJSON, &subgroup); err != nil {
+					log.Println("Failed to unmarshal OR subgroup:", err)
 					continue
 				}
 				partDB = applyGroupFilters(partDB, subgroup, fields)
 			} else {
 				var item models.FilterItem
 				if err := json.Unmarshal(childJSON, &item); err != nil {
+					log.Println("Failed to unmarshal OR filter item:", err)
 					continue
 				}
 				partDB = applyItemFilter(partDB, item, fields)
@@ -64,17 +70,23 @@ func applyGroupFilters(db *gorm.DB, group models.FilterGroup, fields map[string]
 
 	// AND conjunction — apply each child's conditions sequentially
 	for _, raw := range group.Children {
-		childJSON, _ := json.Marshal(raw)
+		childJSON, err := json.Marshal(raw)
+		if err != nil {
+			log.Println("Failed to marshal AND child filter:", err)
+			continue
+		}
 
 		if rawMap, ok := raw.(map[string]interface{}); ok && rawMap["type"] == "GROUP" {
 			var subgroup models.FilterGroup
 			if err := json.Unmarshal(childJSON, &subgroup); err != nil {
+				log.Println("Failed to unmarshal AND subgroup:", err)
 				continue
 			}
 			db = applyGroupFilters(db, subgroup, fields)
 		} else {
 			var item models.FilterItem
 			if err := json.Unmarshal(childJSON, &item); err != nil {
+				log.Println("Failed to unmarshal AND filter item:", err)
 				continue
 			}
 			db = applyItemFilter(db, item, fields)

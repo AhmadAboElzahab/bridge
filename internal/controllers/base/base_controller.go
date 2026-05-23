@@ -23,7 +23,9 @@ func (c *BaseController) Index(ctx *gin.Context) {
 		return
 	}
 
-	err = initializers.DB.Transaction(func(tx *gorm.DB) error {
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
+	err = db.Transaction(func(tx *gorm.DB) error {
 		tab, err := services.UpdateTabSettings(tx, input)
 		if err != nil {
 			return err
@@ -88,7 +90,8 @@ func (c *BaseController) Store(ctx *gin.Context) {}
 
 func (c *BaseController) Show(ctx *gin.Context) {
 	id := ctx.Param("id")
-	if err := initializers.DB.First(c.Model, id).Error; err != nil {
+	db := initializers.DB.WithContext(ctx.Request.Context())
+	if err := db.First(c.Model, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.ErrorJSON(ctx, http.StatusNotFound, "Resource not found")
 		} else {
@@ -101,7 +104,9 @@ func (c *BaseController) Show(ctx *gin.Context) {
 
 func (c *BaseController) Update(ctx *gin.Context) {
 	id := ctx.Param("id")
-	if err := initializers.DB.First(c.Model, id).Error; err != nil {
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
+	if err := db.First(c.Model, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.ErrorJSON(ctx, http.StatusNotFound, "Resource not found")
 		} else {
@@ -120,18 +125,24 @@ func (c *BaseController) Update(ctx *gin.Context) {
 		delete(updates, field)
 	}
 
-	if err := initializers.DB.Model(c.Model).Updates(updates).Error; err != nil {
+	if err := db.Model(c.Model).Updates(updates).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to update", err.Error())
 		return
 	}
 
-	initializers.DB.First(c.Model, id)
+	if err := db.First(c.Model, id).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to reload record", err.Error())
+		return
+	}
+
 	ctx.JSON(http.StatusOK, c.Model)
 }
 
 func (c *BaseController) Delete(ctx *gin.Context) {
 	id := ctx.Param("id")
-	if err := initializers.DB.First(c.Model, id).Error; err != nil {
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
+	if err := db.First(c.Model, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.ErrorJSON(ctx, http.StatusNotFound, "Resource not found")
 		} else {
@@ -139,7 +150,7 @@ func (c *BaseController) Delete(ctx *gin.Context) {
 		}
 		return
 	}
-	if err := initializers.DB.Delete(c.Model).Error; err != nil {
+	if err := db.Delete(c.Model).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to delete resource", err.Error())
 		return
 	}
