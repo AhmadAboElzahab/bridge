@@ -2,9 +2,13 @@
   "name": "bridge",
   "private": true,
   "scripts": {
-    "plop": "plop"
+    "plop": "plop",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
-    "plop": "^3.1.2"
+    "plop": "^3.1.2",
+    "vitepress": "^1.6.4"
   }
 }

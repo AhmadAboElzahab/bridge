@@ -1,0 +1,1 @@
+import{c as a,Q as i,j as e,m as n}from"./chunks/framework.BPKcPtvA.js";const k=JSON.parse('{"title":"Storage","description":"","frontmatter":{},"headers":[],"relativePath":"storage.md","filePath":"storage.md"}'),t={name:"storage.md"};function l(r,s,o,p,h,d){return i(),e("div",null,[...s[0]||(s[0]=[n("",36)])])}const g=a(t,[["render",l]]);export{k as __pageData,g as default};

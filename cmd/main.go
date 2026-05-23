@@ -16,9 +16,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+
 func init() {
 	initializers.LoadENV()
 	initializers.ConnectDatabase()
+	initializers.ConnectStorage()
 }
 
 func main() {
@@ -38,7 +40,10 @@ func main() {
 	gin.ForceConsoleColor()
 	router.Use(gin.Logger())
 
-	router.Static("/storage", "./storage")
+	// Only serve local files when using the local storage driver.
+	if d := strings.ToLower(os.Getenv("STORAGE_DRIVER")); d == "" || d == "local" {
+		router.Static("/storage", "./storage")
+	}
 	routes.SetupRoutes(router)
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})

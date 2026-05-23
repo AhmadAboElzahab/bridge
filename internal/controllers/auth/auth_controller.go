@@ -69,7 +69,7 @@ func (uc *AuthController) Signup(ctx *gin.Context) {
 	var savePath, hash string
 	file, err := ctx.FormFile("avatar")
 	if err == nil {
-		savePath, hash, err = utils.ProcessImageUpload(file, "./storage/users")
+		savePath, hash, err = utils.ProcessImageUpload(ctx.Request.Context(), file, "users")
 		if err != nil {
 			utils.ErrorJSON(ctx, http.StatusBadRequest, "Failed to process image", err.Error())
 			return
