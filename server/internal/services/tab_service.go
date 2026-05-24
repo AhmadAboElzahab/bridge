@@ -37,10 +37,10 @@ func BindTabPayload(ctx *gin.Context) (*TabPayload, error) {
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		return nil, err
 	}
-	if input.Page < 0 {
-		input.Page = 0
+	if input.Page < 1 {
+		input.Page = 1
 	}
-	if input.Size <= 0 || input.Size > 100 {
+	if input.Size <= 0 || input.Size > 200 {
 		input.Size = 50
 	}
 	return &input, nil

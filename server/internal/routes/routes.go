@@ -40,6 +40,7 @@ func SetupRoutes(r *gin.Engine) {
 		users.POST("/", userCtrl.Store)
 		users.GET("/:id", userCtrl.Show)
 		users.PUT("/:id", userCtrl.Update)
+		users.PATCH("/:id", userCtrl.Update)
 		users.DELETE("/:id", userCtrl.Delete)
 	}
 
@@ -49,6 +50,7 @@ func SetupRoutes(r *gin.Engine) {
 		maids.POST("/", maidCtrl.Store)
 		maids.GET("/:id", maidCtrl.Show)
 		maids.PUT("/:id", maidCtrl.Update)
+		maids.PATCH("/:id", maidCtrl.Update)
 		maids.DELETE("/:id", maidCtrl.Delete)
 	}
 

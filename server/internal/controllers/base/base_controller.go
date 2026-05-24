@@ -12,6 +12,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// newModelInstance returns a fresh zero-value pointer of the same type as c.Model,
+// avoiding shared-state mutations across concurrent requests.
+func (c *BaseController) newModelInstance() interface{} {
+	return reflect.New(reflect.TypeOf(c.Model).Elem()).Interface()
+}
+
 type BaseController struct {
 	Model interface{}
 }
@@ -91,7 +97,8 @@ func (c *BaseController) Store(ctx *gin.Context) {}
 func (c *BaseController) Show(ctx *gin.Context) {
 	id := ctx.Param("id")
 	db := initializers.DB.WithContext(ctx.Request.Context())
-	if err := db.First(c.Model, id).Error; err != nil {
+	model := c.newModelInstance()
+	if err := db.First(model, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.ErrorJSON(ctx, http.StatusNotFound, "Resource not found")
 		} else {
@@ -99,14 +106,15 @@ func (c *BaseController) Show(ctx *gin.Context) {
 		}
 		return
 	}
-	ctx.JSON(http.StatusOK, c.Model)
+	ctx.JSON(http.StatusOK, model)
 }
 
 func (c *BaseController) Update(ctx *gin.Context) {
 	id := ctx.Param("id")
 	db := initializers.DB.WithContext(ctx.Request.Context())
+	model := c.newModelInstance()
 
-	if err := db.First(c.Model, id).Error; err != nil {
+	if err := db.First(model, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.ErrorJSON(ctx, http.StatusNotFound, "Resource not found")
 		} else {
@@ -125,24 +133,30 @@ func (c *BaseController) Update(ctx *gin.Context) {
 		delete(updates, field)
 	}
 
-	if err := db.Model(c.Model).Updates(updates).Error; err != nil {
+	if len(updates) == 0 {
+		ctx.JSON(http.StatusOK, model)
+		return
+	}
+
+	if err := db.Model(model).Updates(updates).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to update", err.Error())
 		return
 	}
 
-	if err := db.First(c.Model, id).Error; err != nil {
+	if err := db.First(model, id).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to reload record", err.Error())
 		return
 	}
 
-	ctx.JSON(http.StatusOK, c.Model)
+	ctx.JSON(http.StatusOK, model)
 }
 
 func (c *BaseController) Delete(ctx *gin.Context) {
 	id := ctx.Param("id")
 	db := initializers.DB.WithContext(ctx.Request.Context())
+	model := c.newModelInstance()
 
-	if err := db.First(c.Model, id).Error; err != nil {
+	if err := db.First(model, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.ErrorJSON(ctx, http.StatusNotFound, "Resource not found")
 		} else {
@@ -150,7 +164,7 @@ func (c *BaseController) Delete(ctx *gin.Context) {
 		}
 		return
 	}
-	if err := db.Delete(c.Model).Error; err != nil {
+	if err := db.Delete(model).Error; err != nil {
 		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to delete resource", err.Error())
 		return
 	}

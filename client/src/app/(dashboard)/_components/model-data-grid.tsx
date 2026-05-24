@@ -16,7 +16,13 @@ import { DataGridViewMenu } from "@/components/data-grid/data-grid-view-menu";
 import { useDataGrid } from "@/hooks/use-data-grid";
 import { useWindowSize } from "@/hooks/use-window-size";
 import { getFilterFn } from "@/lib/data-grid-filters";
-import { fetchModelIndex, updateModelRow } from "@/services/data.service";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  fetchModelIndex,
+  PAGE_SIZE,
+  updateModelRow,
+} from "@/services/data.service";
 import type { FieldType, FilterGroup, FormField, UserTab } from "@/types/api";
 import type { CellOpts } from "@/types/data-grid";
 
@@ -239,9 +245,19 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
   const windowSize = useWindowSize({ defaultHeight: 760 });
   const [data, setData] = React.useState<Row[]>([]);
   const prevDataRef = React.useRef<Row[]>([]);
+  const [page, setPage] = React.useState(1);
   const [apiFilters, setApiFilters] = React.useState<
     FilterGroup | Record<string, never>
   >(() => (tab.filters && "type" in tab.filters ? tab.filters : {}));
+
+  // Reset to page 1 whenever filters change
+  const handleFilterChange = React.useCallback(
+    (filters: FilterGroup | Record<string, never>) => {
+      setPage(1);
+      setApiFilters(filters);
+    },
+    [],
+  );
 
   const initialFilterNode = React.useMemo(
     () =>
@@ -267,19 +283,22 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
   );
 
   const { data: apiData } = useQuery({
-    queryKey: [model, tab.id, apiFilters],
+    queryKey: [model, tab.id, page, apiFilters],
     queryFn: () =>
       fetchModelIndex(model, {
         tab_id: tab.id,
         filters: apiFilters,
         search_term: tab.search_term ?? "",
         columns: tab.columns,
-        page: 1,
-        size: 10000,
+        page,
+        size: PAGE_SIZE,
         search: "",
       }),
     placeholderData: (prev) => prev,
   });
+
+  const totalRowCount = apiData?.meta?.totalRowCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalRowCount / PAGE_SIZE));
 
   React.useEffect(() => {
     if (apiData?.data) {
@@ -291,9 +310,20 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     }
   }, [apiData?.data, formFields]);
 
+  const fieldTypeMap = React.useMemo(
+    () => new Map(formFields.map((f) => [f.field_key, f.form_field_type])),
+    [formFields],
+  );
+
   const handleDataChange = React.useCallback(
     async (newData: Row[]) => {
       const prevData = prevDataRef.current;
+
+      // Optimistic update: show new values immediately
+      prevDataRef.current = newData;
+      setData(newData);
+
+      const patches: Array<{ rowId: number | string; changed: Record<string, unknown> }> = [];
 
       for (let i = 0; i < newData.length; i++) {
         const newRow = newData[i];
@@ -305,20 +335,47 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
 
         const changed: Record<string, unknown> = {};
         for (const key of Object.keys(newRow)) {
-          if (key !== "id" && newRow[key] !== prevRow[key]) {
-            changed[key] = newRow[key];
+          if (key === "id" || newRow[key] === prevRow[key]) continue;
+
+          const fieldType = fieldTypeMap.get(key);
+
+          // Many-to-many associations can't be patched via a simple column update
+          if (
+            fieldType === "multi_relation" ||
+            fieldType === "multi_select" ||
+            fieldType === "creatable_multi_select"
+          ) {
+            continue;
           }
+
+          // single_relation stores a foreign key column named field_key + "_id"
+          if (fieldType === "single_relation") {
+            const rawId = newRow[key];
+            changed[`${key}_id`] =
+              rawId !== null && rawId !== "" ? Number(rawId) : null;
+            continue;
+          }
+
+          changed[key] = newRow[key];
         }
 
         if (Object.keys(changed).length > 0) {
-          await updateModelRow(model, rowId, changed);
+          patches.push({ rowId, changed });
         }
       }
 
-      prevDataRef.current = newData;
-      setData(newData);
+      try {
+        await Promise.all(
+          patches.map(({ rowId, changed }) => updateModelRow(model, rowId, changed)),
+        );
+      } catch {
+        // Rollback optimistic update on failure
+        prevDataRef.current = prevData;
+        setData(prevData);
+        toast.error("Failed to save changes");
+      }
     },
-    [model],
+    [model, fieldTypeMap],
   );
 
   const filterFn = React.useMemo(() => getFilterFn<Row>(), []);
@@ -404,7 +461,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
           <AdvancedFilter
             fields={filterFields}
             value={initialFilterNode}
-            onChange={setApiFilters}
+            onChange={handleFilterChange}
             align="end"
           />
           <DataGridSortMenu table={table} align="end" />
@@ -413,6 +470,34 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         </div>
         <DataGridKeyboardShortcuts enableSearch={!!dataGridProps.searchState} />
         <DataGrid {...dataGridProps} table={table} height={height} />
+        <div className="flex items-center justify-between px-1 text-muted-foreground text-sm">
+          <span>
+            {totalRowCount > 0
+              ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalRowCount)} of ${totalRowCount} rows`
+              : "0 rows"}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => p - 1)}
+              disabled={page <= 1}
+            >
+              Previous
+            </Button>
+            <span className="tabular-nums">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       </div>
     </DirectionProvider>
   );
