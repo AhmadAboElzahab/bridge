@@ -47,7 +47,7 @@ func QueryModelRecords(
 	}
 
 	if len(input.Filters) > 0 {
-		query = ApplyFilters(query, input.Filters, formFieldsByID)
+		query = ApplyFilters(query, input.Filters, formFieldsByKey)
 	}
 
 	var total int64

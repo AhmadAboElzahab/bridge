@@ -1,6 +1,25 @@
 import type { FilterGroup, FilterRule } from "@/types/api";
 import type { FilterGroupNode, FilterItemNode, FilterNode } from "./types";
 
+// Converts a saved API FilterGroup back into the UI FilterGroupNode tree.
+export function fromApiFilter(group: FilterGroup): FilterGroupNode {
+  return {
+    id: group.id,
+    type: "GROUP",
+    conjunction: group.conjunction,
+    children: group.children.map((child): FilterItemNode | FilterGroupNode => {
+      if (child.type === "GROUP") return fromApiFilter(child);
+      return {
+        id: child.id,
+        type: "ITEM",
+        field: child.field,
+        operator: child.operator,
+        value: child.value,
+      };
+    }),
+  };
+}
+
 function itemToRule(item: FilterItemNode): FilterRule {
   return {
     id: item.id,

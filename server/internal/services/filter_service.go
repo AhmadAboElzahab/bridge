@@ -97,7 +97,7 @@ func applyGroupFilters(db *gorm.DB, group models.FilterGroup, fields map[string]
 }
 
 func applyItemFilter(db *gorm.DB, item models.FilterItem, fields map[string]models.FormField) *gorm.DB {
-	field, ok := fields[fmt.Sprintf("%d", item.FieldID)]
+	field, ok := fields[item.Field]
 	if !ok {
 		return db
 	}
@@ -105,7 +105,7 @@ func applyItemFilter(db *gorm.DB, item models.FilterItem, fields map[string]mode
 	column := resolveColumnName(field)
 	value := normalizeValue(extractActualValue(item.Value))
 
-	condition, conditionValue := buildCondition(column, item.Operator.Value, value, item.SecondOperator)
+	condition, conditionValue := buildCondition(column, item.Operator, value)
 	if condition != "" && conditionValue != nil {
 		if slice, ok := conditionValue.([]interface{}); ok {
 			db = db.Where(condition, slice...)
@@ -119,27 +119,27 @@ func applyItemFilter(db *gorm.DB, item models.FilterItem, fields map[string]mode
 	return db
 }
 
-func buildCondition(column, operator string, value interface{}, secondOperator *models.Operator) (string, interface{}) {
+func buildCondition(column, operator string, value interface{}) (string, interface{}) {
 	switch operator {
-	case "is", "=", "==", "isExactly":
+	case "is", "=", "==", "isExactly", "equals":
 		return fmt.Sprintf("%s = ?", column), value
-	case "isNot", "!=":
+	case "isNot", "!=", "notEquals":
 		return fmt.Sprintf("%s != ?", column), value
 	case "contains":
 		return fmt.Sprintf("%s ILIKE ?", column), fmt.Sprintf("%%%s%%", toStr(value))
-	case "doesNotContain":
+	case "doesNotContain", "notContains":
 		return fmt.Sprintf("%s NOT ILIKE ?", column), fmt.Sprintf("%%%s%%", toStr(value))
 	case "isEmpty":
 		return fmt.Sprintf("%s IS NULL", column), nil
 	case "isNotEmpty":
 		return fmt.Sprintf("%s IS NOT NULL", column), nil
-	case "<", "isBefore":
+	case "<", "isBefore", "before":
 		return fmt.Sprintf("%s < ?", column), value
-	case "<=", "isOnOrBefore":
+	case "<=", "isOnOrBefore", "onOrBefore":
 		return fmt.Sprintf("%s <= ?", column), value
-	case ">", "isAfter":
+	case ">", "isAfter", "after":
 		return fmt.Sprintf("%s > ?", column), value
-	case ">=", "isOnOrAfter":
+	case ">=", "isOnOrAfter", "onOrAfter":
 		return fmt.Sprintf("%s >= ?", column), value
 	case "isAnyOf", "hasAnyOf":
 		return fmt.Sprintf("%s IN (?)", column), value
@@ -147,10 +147,10 @@ func buildCondition(column, operator string, value interface{}, secondOperator *
 		return fmt.Sprintf("%s NOT IN (?)", column), value
 	case "hasAllOf":
 		return fmt.Sprintf("%s @> ?", column), value
-	case "isWithin":
-		if secondOperator != nil {
-			return handleDateRangeCondition(column, secondOperator.Value, toStr(value))
-		}
+	case "isTrue":
+		return fmt.Sprintf("%s = ?", column), true
+	case "isFalse":
+		return fmt.Sprintf("%s = ?", column), false
 	}
 	return "", nil
 }

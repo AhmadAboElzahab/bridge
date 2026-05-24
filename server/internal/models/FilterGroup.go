@@ -6,13 +6,11 @@ type Operator struct {
 }
 
 type FilterItem struct {
-	ID             string      `json:"id"`
-	Type           string      `json:"type"`
-	FieldID        uint        `json:"fieldId"`
-	ColumnType     string      `json:"columnType"`
-	Operator       Operator    `json:"operator"`
-	SecondOperator *Operator   `json:"secondOperator,omitempty"`
-	Value          interface{} `json:"value"`
+	ID       string      `json:"id"`
+	Type     string      `json:"type"`
+	Field    string      `json:"field"`
+	Operator string      `json:"operator"`
+	Value    interface{} `json:"value"`
 }
 
 type FilterGroup struct {

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import * as React from "react";
 import { AdvancedFilter } from "@/components/advanced-filter";
+import { fromApiFilter } from "@/components/advanced-filter/to-api-filter";
 import type { FilterField } from "@/components/advanced-filter/types";
 import { DataGrid } from "@/components/data-grid/data-grid";
 import { DataGridKeyboardShortcuts } from "@/components/data-grid/data-grid-keyboard-shortcuts";
@@ -242,6 +243,15 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     FilterGroup | Record<string, never>
   >(() => (tab.filters && "type" in tab.filters ? tab.filters : {}));
 
+  const initialFilterNode = React.useMemo(
+    () =>
+      tab.filters && "type" in tab.filters
+        ? fromApiFilter(tab.filters as FilterGroup)
+        : undefined,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tab.id],
+  );
+
   const filterFields = React.useMemo<FilterField[]>(
     () =>
       formFields.map((f) => ({
@@ -393,6 +403,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         >
           <AdvancedFilter
             fields={filterFields}
+            value={initialFilterNode}
             onChange={setApiFilters}
             align="end"
           />
