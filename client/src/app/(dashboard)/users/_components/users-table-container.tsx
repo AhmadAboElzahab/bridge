@@ -185,7 +185,7 @@ export function UsersTableContainer() {
         </Button>
       </div>
 
-      <UsersTable key={activeTab.id} formFields={form_fields} tab={activeTab} />
+      <UsersTable formFields={form_fields} tab={activeTab} />
 
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="sm:max-w-sm">

@@ -143,11 +143,6 @@ func (c *BaseController) Update(ctx *gin.Context) {
 		return
 	}
 
-	if err := db.First(model, id).Error; err != nil {
-		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to reload record", err.Error())
-		return
-	}
-
 	ctx.JSON(http.StatusOK, model)
 }
 

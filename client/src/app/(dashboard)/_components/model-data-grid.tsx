@@ -250,6 +250,14 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     FilterGroup | Record<string, never>
   >(() => (tab.filters && "type" in tab.filters ? tab.filters : {}));
 
+  // Reset page and filters when the active tab changes
+  const prevTabIdRef = React.useRef(tab.id);
+  if (prevTabIdRef.current !== tab.id) {
+    prevTabIdRef.current = tab.id;
+    setPage(1);
+    setApiFilters(tab.filters && "type" in tab.filters ? tab.filters : {});
+  }
+
   // Reset to page 1 whenever filters change
   const handleFilterChange = React.useCallback(
     (filters: FilterGroup | Record<string, never>) => {

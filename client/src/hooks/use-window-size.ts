@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 
 interface WindowSize {
   width: number;
@@ -13,20 +14,14 @@ interface UseWindowSizeProps {
 export function useWindowSize(props: UseWindowSizeProps = {}): WindowSize {
   const { defaultWidth = 0, defaultHeight = 0 } = props;
 
-  const [windowSize, setWindowSize] = React.useState<WindowSize>({
-    width: defaultWidth,
-    height: defaultHeight,
+  const [windowSize, setWindowSize] = React.useState<WindowSize>(() => {
+    if (typeof window !== "undefined") {
+      return { width: window.innerWidth, height: window.innerHeight };
+    }
+    return { width: defaultWidth, height: defaultHeight };
   });
 
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // Set initial size after mount to avoid hydration mismatch
-    setWindowSize({
-      width: window.innerWidth,
-      height: window.innerHeight,
-    });
-
+  useIsomorphicLayoutEffect(() => {
     let timeoutId: NodeJS.Timeout | null = null;
 
     function onResize() {

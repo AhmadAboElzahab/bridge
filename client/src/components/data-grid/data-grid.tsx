@@ -27,7 +27,7 @@ interface DataGridProps<TData>
   stretchColumns?: boolean;
 }
 
-export function DataGrid<TData>({
+function DataGridImpl<TData>({
   dataGridRef,
   headerRef,
   rowMapRef,
@@ -279,3 +279,5 @@ export function DataGrid<TData>({
     </div>
   );
 }
+
+export const DataGrid = React.memo(DataGridImpl) as typeof DataGridImpl;

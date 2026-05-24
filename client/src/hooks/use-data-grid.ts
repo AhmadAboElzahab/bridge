@@ -1783,6 +1783,7 @@ function useDataGrid<TData>({
 
       if (!event.ctrlKey && !event.metaKey && !event.shiftKey) {
         const cellKey = getCellKey(rowIndex, columnId);
+        const currentState = store.getState();
         store.batch(() => {
           store.setState("selectionState", {
             selectedCells: propsRef.current.enableSingleCellSelection
@@ -1794,7 +1795,9 @@ function useDataGrid<TData>({
             },
             isSelecting: true,
           });
-          store.setState("rowSelection", {});
+          if (Object.keys(currentState.rowSelection).length > 0) {
+            store.setState("rowSelection", {});
+          }
         });
       }
     },
@@ -1826,6 +1829,7 @@ function useDataGrid<TData>({
 
   const onCellMouseUp = React.useCallback(() => {
     const currentState = store.getState();
+    if (!currentState.selectionState.isSelecting) return;
     store.setState("selectionState", {
       ...currentState.selectionState,
       isSelecting: false,
@@ -3192,16 +3196,8 @@ function useDataGrid<TData>({
     return () => cancelAnimationFrame(rafId);
   }, [
     rowHeight,
-    table.getState().columnFilters,
-    table.getState().columnOrder,
-    table.getState().columnPinning,
     table.getState().columnSizing,
     table.getState().columnVisibility,
-    table.getState().expanded,
-    table.getState().globalFilter,
-    table.getState().grouping,
-    table.getState().rowSelection,
-    table.getState().sorting,
   ]);
 
   // Calculate virtual values outside of child render to avoid flushSync issues

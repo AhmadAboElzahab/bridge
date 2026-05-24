@@ -185,7 +185,7 @@ export function MaidsTableContainer() {
         </Button>
       </div>
 
-      <MaidsTable key={activeTab.id} formFields={form_fields} tab={activeTab} />
+      <MaidsTable formFields={form_fields} tab={activeTab} />
 
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="sm:max-w-sm">
