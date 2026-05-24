@@ -54,7 +54,7 @@ func QueryModelRecords(
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := query.Offset((input.Page - 1) * input.Size).Limit(input.Size).Find(slicePtr).Error; err != nil {
+	if err := query.Order(modelTable + ".id ASC").Offset((input.Page - 1) * input.Size).Limit(input.Size).Find(slicePtr).Error; err != nil {
 		return nil, 0, err
 	}
 
