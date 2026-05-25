@@ -126,7 +126,7 @@ export function TableContainer({ entityType, model }: TableContainerProps) {
 
   return (
     <div className="">
-      <div className="flex items-center bg-muted  gap-2">
+      <div className="flex h-9 items-center bg-muted gap-2 border-b">
         <TabsPrimitive.Root
           value={String(activeTab.id)}
           onValueChange={(v) => void setActiveTabId(Number(v))}
@@ -137,7 +137,7 @@ export function TableContainer({ entityType, model }: TableContainerProps) {
                 <TabsPrimitive.Trigger
                   value={String(tab.id)}
                   className={cn(
-                    "inline-flex h-6 items-center justify-center whitespace-nowrap rounded-md px-2 text-xs font-medium ring-offset-background transition-all",
+                    "inline-flex h-6 items-center justify-center whitespace-nowrap rounded-md px-2 text-sm font-medium ring-offset-background transition-all",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                     "disabled:pointer-events-none disabled:opacity-50",
                     "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow",

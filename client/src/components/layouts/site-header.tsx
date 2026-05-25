@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-50 w-full border-border/40 border-b bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60">
-      <div className="flex items-center">
+    <header className="sticky top-0 z-50 w-full bg-muted">
+      <div className="flex h-9 items-center">
         <Button variant="ghost" size="icon" className="size-8" asChild>
           <Link href="/maids">
             <LayoutGrid />

@@ -77,7 +77,12 @@ function SortableColItem({
         </button>
       )}
       {isSearching && <div className="w-3.5" />}
-      <span className={cn("flex-1 truncate", !item.visible && "text-muted-foreground")}>
+      <span
+        className={cn(
+          "flex-1 truncate",
+          !item.visible && "text-muted-foreground",
+        )}
+      >
         {item.label}
       </span>
       <button
@@ -107,8 +112,9 @@ export interface ColumnSavePayload {
   order: number;
 }
 
-interface DataGridViewMenuProps<TData>
-  extends React.ComponentProps<typeof PopoverContent> {
+interface DataGridViewMenuProps<TData> extends React.ComponentProps<
+  typeof PopoverContent
+> {
   table: Table<TData>;
   disabled?: boolean;
   onSaveColumns?: (columns: ColumnSavePayload[]) => void;
@@ -127,9 +133,7 @@ export function DataGridViewMenu<TData>({
   const [items, setItems] = React.useState<ColItem[]>(() =>
     table
       .getAllLeafColumns()
-      .filter(
-        (c) => typeof c.accessorFn !== "undefined" && c.getCanHide(),
-      )
+      .filter((c) => typeof c.accessorFn !== "undefined" && c.getCanHide())
       .map((c) => ({
         id: c.id,
         label: String(c.columnDef.meta?.label ?? c.id),
@@ -186,7 +190,7 @@ export function DataGridViewMenu<TData>({
           aria-label="Toggle columns"
           role="combobox"
           dir={dir}
-          variant="outline"
+          variant="ghost"
           size="sm"
           className="ms-auto hidden h-8 font-normal lg:flex"
           disabled={disabled}
@@ -200,7 +204,9 @@ export function DataGridViewMenu<TData>({
         className={cn("w-56 p-2", className)}
         {...props}
       >
-        <p className="mb-2 px-1 text-muted-foreground text-xs font-medium">Columns</p>
+        <p className="mb-2 px-1 text-muted-foreground text-xs font-medium">
+          Columns
+        </p>
         <Input
           placeholder="Search columns..."
           value={search}

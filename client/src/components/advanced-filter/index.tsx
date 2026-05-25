@@ -52,9 +52,9 @@ export function AdvancedFilter({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="h-8 gap-1.5 text-xs"
+          className="h-8 gap-1.5 text-sm"
           aria-label="Filters"
         >
           <ListFilter className="size-3.5" />

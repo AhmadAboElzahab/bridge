@@ -559,7 +559,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         <div
           role="toolbar"
           aria-orientation="horizontal"
-          className="flex items-center gap-2 w-full   self-end"
+          className="flex h-9 items-center gap-2 w-full self-end"
         >
           <AdvancedFilter
             fields={filterFields}

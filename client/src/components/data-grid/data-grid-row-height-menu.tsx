@@ -39,8 +39,9 @@ const rowHeights = [
   },
 ] as const;
 
-interface DataGridRowHeightMenuProps<TData>
-  extends React.ComponentProps<typeof SelectContent> {
+interface DataGridRowHeightMenuProps<TData> extends React.ComponentProps<
+  typeof SelectContent
+> {
   table: Table<TData>;
   disabled?: boolean;
 }
@@ -69,7 +70,7 @@ export function DataGridRowHeightMenu<TData>({
       onValueChange={onRowHeightChange}
       disabled={disabled}
     >
-      <SelectTrigger size="sm" className="[&_svg:nth-child(2)]:hidden">
+      <SelectTrigger size="sm" className="border-transparent shadow-none hover:bg-accent [&_svg:nth-child(2)]:hidden">
         <SelectValue placeholder="Row height">
           <selectedRowHeight.icon />
           {selectedRowHeight.label}
