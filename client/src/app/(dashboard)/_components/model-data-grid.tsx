@@ -551,7 +551,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     enablePaste: true,
   });
 
-  const height = Math.max(400, windowSize.height - 130);
+  const height = Math.max(400, windowSize.height - 140);
 
   return (
     <DirectionProvider dir="ltr">

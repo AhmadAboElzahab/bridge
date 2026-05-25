@@ -30,7 +30,6 @@ export function Providers({ children }: React.PropsWithChildren) {
         attribute="class"
         defaultTheme="system"
         enableSystem
-        disableTransitionOnChange
       >
         <TooltipProvider delayDuration={120}>
           <NuqsAdapter>{children}</NuqsAdapter>
