@@ -126,7 +126,7 @@ export function TableContainer({ entityType, model }: TableContainerProps) {
 
   return (
     <div className="">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center bg-red-100 gap-2">
         <TabsPrimitive.Root
           value={String(activeTab.id)}
           onValueChange={(v) => void setActiveTabId(Number(v))}

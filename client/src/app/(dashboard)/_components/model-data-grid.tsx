@@ -260,15 +260,19 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
   );
 
   // Persist sort state to the tab record (debounced) and re-fetch from page 1
-  const saveSortingTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveSortingTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const handleSortingChange = React.useCallback(
     (updater: SortingState | ((prev: SortingState) => SortingState)) => {
-      const next = typeof updater === "function" ? updater(apiSorting) : updater;
+      const next =
+        typeof updater === "function" ? updater(apiSorting) : updater;
       setApiSorting(next);
       setPage(1);
       setData([]);
       prevDataRef.current = [];
-      if (saveSortingTimerRef.current) clearTimeout(saveSortingTimerRef.current);
+      if (saveSortingTimerRef.current)
+        clearTimeout(saveSortingTimerRef.current);
       saveSortingTimerRef.current = setTimeout(() => {
         void updateTabSorting(tab.id, next);
       }, 600);
@@ -464,17 +468,19 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     const colMap = new Map(tab.columns.map((c) => [c.field_key, c]));
     return [
       getDataGridSelectColumn<Row>({ enableRowMarkers: true }),
-      ...sortedFields.map((field): ColumnDef<Row> => ({
-        id: field.field_key,
-        accessorKey: field.field_key,
-        header: field.label,
-        minSize: colMap.get(field.field_key)?.width ?? 180,
-        filterFn,
-        meta: {
-          label: field.label,
-          cell: fieldTypeToCellOpts(field),
-        },
-      })),
+      ...sortedFields.map(
+        (field): ColumnDef<Row> => ({
+          id: field.field_key,
+          accessorKey: field.field_key,
+          header: field.label,
+          minSize: colMap.get(field.field_key)?.width ?? 180,
+          filterFn,
+          meta: {
+            label: field.label,
+            cell: fieldTypeToCellOpts(field),
+          },
+        }),
+      ),
     ];
   }, [sortedFields, tab.columns, filterFn]);
 
@@ -545,7 +551,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     enablePaste: true,
   });
 
-  const height = Math.max(400, windowSize.height - 200);
+  const height = Math.max(400, windowSize.height - 130);
 
   return (
     <DirectionProvider dir="ltr">
@@ -553,7 +559,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         <div
           role="toolbar"
           aria-orientation="horizontal"
-          className="flex items-center gap-2 self-end"
+          className="flex items-center gap-2 w-full  bg-red-200 self-end"
         >
           <AdvancedFilter
             fields={filterFields}
@@ -571,13 +577,13 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         </div>
         <DataGridKeyboardShortcuts enableSearch={!!dataGridProps.searchState} />
         <DataGrid {...dataGridProps} table={table} height={height} />
-        <div className="flex items-center justify-between px-1 text-muted-foreground text-sm">
+        <div className="flex items-center justify-between px-1 text-muted-foreground bg-green-200 text-sm">
           <span>
             {totalRowCount > 0
               ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalRowCount)} of ${totalRowCount} rows`
               : "0 rows"}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center bg-red-200 gap-2">
             <Button
               variant="outline"
               size="sm"
