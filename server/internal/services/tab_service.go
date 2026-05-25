@@ -19,11 +19,18 @@ type ColumnInput struct {
 	Width    *int   `json:"width"`                        // Width of the column in pixels
 }
 
+// SortItem represents a single column sort directive sent from the frontend.
+type SortItem struct {
+	FieldKey string `json:"field_key"` // Must match a FormField.FieldKey for this model
+	Desc     bool   `json:"desc"`      // true = DESC, false = ASC
+}
+
 // TabPayload encapsulates the tab-related state passed from the frontend,
-// including filters, column settings, pagination, and search input.
+// including filters, column settings, pagination, search input, and sort state.
 type TabPayload struct {
 	TabID   uint            `json:"tab_id" binding:"required"` // ID of the user tab
 	Filters json.RawMessage `json:"filters" binding:"required"`
+	Sorting []SortItem      `json:"sorting"`                         // Column sort state (server-side)
 	Columns []ColumnInput   `json:"columns" binding:"required,dive"` // Column configurations for the tab
 	Page    int             `json:"page"`                            // Page number for pagination
 	Size    int             `json:"size"`                            // Page size for pagination

@@ -23,3 +23,19 @@ export async function deleteTab(id: number) {
   const res = await api.delete(`/tabs/${id}`);
   return res.data;
 }
+
+export async function updateTabColumns(
+  tabId: number,
+  columns: { field_key: string; visible: boolean; order: number }[],
+) {
+  const res = await api.patch(`/tabs/${tabId}/columns`, { columns });
+  return res.data;
+}
+
+export async function updateTabSorting(
+  tabId: number,
+  sorting: { id: string; desc: boolean }[],
+) {
+  const res = await api.patch(`/tabs/${tabId}/sorting`, { sorting });
+  return res.data;
+}

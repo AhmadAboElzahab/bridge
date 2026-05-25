@@ -39,7 +39,20 @@ interface DataGridColumnHeaderProps<TData, TValue>
   table: Table<TData>;
 }
 
-export function DataGridColumnHeader<TData, TValue>({
+export const DataGridColumnHeader = React.memo(
+  DataGridColumnHeaderImpl,
+  (prev, next) => {
+    if (prev.header !== next.header) return false;
+    const ps = prev.table.getState();
+    const ns = next.table.getState();
+    if (ps.sorting !== ns.sorting) return false;
+    if (ps.columnPinning !== ns.columnPinning) return false;
+    if (ps.columnSizingInfo !== ns.columnSizingInfo) return false;
+    return true;
+  },
+) as typeof DataGridColumnHeaderImpl;
+
+function DataGridColumnHeaderImpl<TData, TValue>({
   header,
   table,
   className,

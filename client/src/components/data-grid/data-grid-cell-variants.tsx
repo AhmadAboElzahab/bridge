@@ -815,23 +815,9 @@ export function CheckboxCell<TData>({
     [isFocused, value, onCheckedChange, readOnly],
   );
 
-  const onCheckboxClick = React.useCallback((event: React.MouseEvent) => {
+  const stopPropagation = React.useCallback((event: React.SyntheticEvent) => {
     event.stopPropagation();
   }, []);
-
-  const onCheckboxMouseDown = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-    },
-    [],
-  );
-
-  const onCheckboxDoubleClick = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-    },
-    [],
-  );
 
   return (
     <DataGridCellWrapper<TData>
@@ -856,9 +842,9 @@ export function CheckboxCell<TData>({
         onCheckedChange={onCheckedChange}
         disabled={readOnly}
         className="border-primary"
-        onClick={onCheckboxClick}
-        onMouseDown={onCheckboxMouseDown}
-        onDoubleClick={onCheckboxDoubleClick}
+        onClick={stopPropagation}
+        onMouseDown={stopPropagation}
+        onDoubleClick={stopPropagation}
       />
     </DataGridCellWrapper>
   );

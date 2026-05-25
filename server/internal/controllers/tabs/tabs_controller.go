@@ -1,12 +1,14 @@
 package tabs
 
 import (
+	"encoding/json"
 	"net/http"
 	"sort"
 
 	"github.com/AhmadAboElzahab/bridge/internal/constants"
 	"github.com/AhmadAboElzahab/bridge/internal/initializers"
 	"github.com/AhmadAboElzahab/bridge/internal/models"
+	"github.com/AhmadAboElzahab/bridge/internal/services"
 	"github.com/AhmadAboElzahab/bridge/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
@@ -137,6 +139,7 @@ func (tc *TabsController) GetTabs(ctx *gin.Context) {
 			"model_name":  tab.ModelName,
 			"search_term": tab.SearchTerm,
 			"filters":     tab.Filters,
+			"sorting":     tab.Sorting,
 			"is_default":  tab.IsDefault,
 			"columns":     columns,
 		})
@@ -223,6 +226,58 @@ func (tc *TabsController) AddNewTab(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, gin.H{"message": "New tab created", "tab_id": tabID})
 }
 
+// UpdateColumnsInput is the request body for bulk-updating column visibility and order.
+type UpdateColumnsInput struct {
+	Columns []services.ColumnInput `json:"columns" binding:"required,dive"`
+}
+
+// UpdateTabColumns godoc
+// @Summary     Update tab column settings
+// @Description Updates visibility and order for columns in a user's tab
+// @Tags        tabs
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       id    path    int                 true  "Tab ID"
+// @Param       body  body    UpdateColumnsInput  true  "Column updates"
+// @Success     200   {object}  object{message=string}
+// @Failure     400   {object}  utils.ErrorResponse
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     404   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/tabs/{id}/columns [patch]
+func (tc *TabsController) UpdateTabColumns(ctx *gin.Context) {
+	userID := ctx.MustGet("userID").(uint)
+	tabID := ctx.Param("id")
+
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
+	var tab models.UserTab
+	if err := db.Where("id = ? AND user_id = ?", tabID, userID).First(&tab).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusNotFound, "Tab not found")
+		return
+	}
+
+	var input UpdateColumnsInput
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		utils.ErrorJSON(ctx, http.StatusBadRequest, "Invalid payload", err.Error())
+		return
+	}
+
+	fieldMap, _, err := services.LoadFormFields(db, tab.ModelName)
+	if err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to load form fields", err.Error())
+		return
+	}
+
+	if err := services.UpsertTabColumns(db, tab.ID, input.Columns, fieldMap); err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to update columns", err.Error())
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Columns updated"})
+}
+
 // UpdateTab godoc
 // @Summary     Rename a tab
 // @Description Updates the name of a user's tab
@@ -263,6 +318,60 @@ func (tc *TabsController) UpdateTab(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Tab updated successfully"})
+}
+
+// UpdateTabSortingInput is the request body for persisting sort state.
+type UpdateTabSortingInput struct {
+	Sorting []map[string]interface{} `json:"sorting"`
+}
+
+// UpdateTabSorting godoc
+// @Summary     Update tab sort state
+// @Description Persists the current column sort state for a user's tab
+// @Tags        tabs
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       id    path    int                      true  "Tab ID"
+// @Param       body  body    UpdateTabSortingInput    true  "Sort state"
+// @Success     200   {object}  object{message=string}
+// @Failure     400   {object}  utils.ErrorResponse
+// @Failure     401   {object}  utils.ErrorResponse
+// @Failure     404   {object}  utils.ErrorResponse
+// @Failure     500   {object}  utils.ErrorResponse
+// @Router      /api/tabs/{id}/sorting [patch]
+func (tc *TabsController) UpdateTabSorting(ctx *gin.Context) {
+	userID := ctx.MustGet("userID").(uint)
+	tabID := ctx.Param("id")
+
+	db := initializers.DB.WithContext(ctx.Request.Context())
+
+	var tab models.UserTab
+	if err := db.Where("id = ? AND user_id = ?", tabID, userID).First(&tab).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusNotFound, "Tab not found")
+		return
+	}
+
+	var input UpdateTabSortingInput
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		utils.ErrorJSON(ctx, http.StatusBadRequest, "Invalid payload", err.Error())
+		return
+	}
+
+	sortingBytes, err := json.Marshal(input.Sorting)
+	if err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to serialize sorting", err.Error())
+		return
+	}
+	sortingJSON := datatypes.JSON(sortingBytes)
+
+	tab.Sorting = sortingJSON
+	if err := db.Save(&tab).Error; err != nil {
+		utils.ErrorJSON(ctx, http.StatusInternalServerError, "Failed to save sorting", err.Error())
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Sorting updated"})
 }
 
 // DeleteTab godoc

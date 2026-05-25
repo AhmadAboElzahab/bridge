@@ -59,6 +59,8 @@ func SetupRoutes(r *gin.Engine) {
 		tabsRoutes.GET("", tabsCtrl.GetTabs)
 		tabsRoutes.POST("", tabsCtrl.AddNewTab)
 		tabsRoutes.PUT("/:id", tabsCtrl.UpdateTab)
+		tabsRoutes.PATCH("/:id/columns", tabsCtrl.UpdateTabColumns)
+		tabsRoutes.PATCH("/:id/sorting", tabsCtrl.UpdateTabSorting)
 		tabsRoutes.DELETE("/:id", tabsCtrl.DeleteTab)
 	}
 	// plop:routes

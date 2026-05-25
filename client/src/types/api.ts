@@ -159,6 +159,11 @@ export interface UserTabColumn {
   width: number;
 }
 
+export interface TabSortItem {
+  id: string;
+  desc: boolean;
+}
+
 export interface UserTab {
   id: number;
   model_name: string;
@@ -166,6 +171,7 @@ export interface UserTab {
   is_default: boolean;
   search_term: string;
   filters: FilterGroup | Record<string, never>;
+  sorting: TabSortItem[] | null;
   columns: UserTabColumn[];
 }
 
@@ -206,6 +212,7 @@ export interface IndexPayload {
   tab_id: number;
   model?: string;
   filters: FilterGroup | Record<string, never>;
+  sorting: Array<{ field_key: string; desc: boolean }>;
   search_term: string;
   columns: UserTabColumn[];
   page: number;

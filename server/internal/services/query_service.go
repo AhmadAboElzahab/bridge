@@ -1,7 +1,9 @@
 package services
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/AhmadAboElzahab/bridge/internal/models"
 	"github.com/AhmadAboElzahab/bridge/internal/utils"
@@ -54,9 +56,63 @@ func QueryModelRecords(
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := query.Order(modelTable + ".id ASC").Offset((input.Page - 1) * input.Size).Limit(input.Size).Find(slicePtr).Error; err != nil {
+
+	query = applySorting(query, input.Sorting, formFieldsByKey, modelTable)
+
+	if err := query.Offset((input.Page - 1) * input.Size).Limit(input.Size).Find(slicePtr).Error; err != nil {
 		return nil, 0, err
 	}
 
 	return slicePtr, total, nil
+}
+
+// applySorting builds ORDER BY clauses from the client sort state.
+// For single_relation fields with a DataSource, it LEFT JOINs the related table
+// and sorts by the human-readable label column instead of the FK integer.
+// Always appends {table}.id ASC as a stable tiebreaker.
+func applySorting(
+	query *gorm.DB,
+	sorting []SortItem,
+	formFields map[string]models.FormField,
+	modelTable string,
+) *gorm.DB {
+	joinedKeys := make(map[string]bool)
+
+	for _, s := range sorting {
+		field, ok := formFields[s.FieldKey]
+		if !ok {
+			continue
+		}
+
+		dir := "ASC"
+		if s.Desc {
+			dir = "DESC"
+		}
+
+		if field.FormFieldType == "single_relation" && field.DataSource != "" {
+			parts := strings.Split(field.DataSource, ":")
+			if len(parts) != 3 {
+				continue
+			}
+			joinTable := query.NamingStrategy.TableName(parts[0])
+			labelCol := query.NamingStrategy.ColumnName("", parts[2])
+			fkCol := field.FieldKey + "_id"
+
+			joinKey := joinTable + "." + fkCol
+			if !joinedKeys[joinKey] {
+				query = query.Joins(fmt.Sprintf(
+					"LEFT JOIN %s ON %s.%s = %s.id",
+					joinTable, modelTable, fkCol, joinTable,
+				))
+				joinedKeys[joinKey] = true
+			}
+			query = query.Order(fmt.Sprintf("%s.%s %s", joinTable, labelCol, dir))
+		} else {
+			query = query.Order(fmt.Sprintf("%s.%s %s", modelTable, field.FieldKey, dir))
+		}
+	}
+
+	// Stable tiebreaker so pagination is deterministic
+	query = query.Order(modelTable + ".id ASC")
+	return query
 }

@@ -1,13 +1,11 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import * as React from "react";
 import { DataGridColumnHeader } from "@/components/data-grid/data-grid-column-header";
 import { DataGridContextMenu } from "@/components/data-grid/data-grid-context-menu";
 import { DataGridPasteDialog } from "@/components/data-grid/data-grid-paste-dialog";
 import { DataGridRow } from "@/components/data-grid/data-grid-row";
 import { DataGridSearch } from "@/components/data-grid/data-grid-search";
-import { useAsRef } from "@/hooks/use-as-ref";
 import type { useDataGrid } from "@/hooks/use-data-grid";
 import {
   flexRender,
@@ -54,6 +52,8 @@ function DataGridImpl<TData>({
   stretchColumns = false,
   adjustLayout = false,
   className,
+  // biome-ignore lint/correctness/noUnusedVariables: received only to invalidate React.memo when sorting changes; rows are re-read from table.getRowModel() on each render
+  sorting: _sorting,
   ...props
 }: DataGridProps<TData>) {
   const rows = table.getRowModel().rows;
@@ -61,32 +61,11 @@ function DataGridImpl<TData>({
   const columnVisibility = table.getState().columnVisibility;
   const columnPinning = table.getState().columnPinning;
 
-  const onRowAddRef = useAsRef(onRowAddProp);
-
-  const onRowAdd = React.useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      onRowAddRef.current?.(event);
-    },
-    [onRowAddRef],
-  );
-
   const onDataGridContextMenu = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       event.preventDefault();
     },
     [],
-  );
-
-  const onFooterCellKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (!onRowAddRef.current) return;
-
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        onRowAddRef.current();
-      }
-    },
-    [onRowAddRef],
   );
 
   return (
@@ -242,39 +221,6 @@ function DataGridImpl<TData>({
             );
           })}
         </div>
-        {!readOnly && onRowAdd && (
-          <div
-            role="rowgroup"
-            data-slot="grid-footer"
-            ref={footerRef}
-            className="sticky bottom-0 z-10 grid border-t bg-background"
-          >
-            <div
-              role="row"
-              aria-rowindex={rows.length + 2}
-              data-slot="grid-add-row"
-              tabIndex={-1}
-              className="flex w-full"
-            >
-              <div
-                role="gridcell"
-                tabIndex={0}
-                className="relative flex h-9 grow items-center bg-muted/30 transition-colors hover:bg-muted/50 focus:bg-muted/50 focus:outline-none"
-                style={{
-                  width: table.getTotalSize(),
-                  minWidth: table.getTotalSize(),
-                }}
-                onClick={onRowAdd}
-                onKeyDown={onFooterCellKeyDown}
-              >
-                <div className="sticky start-0 flex items-center gap-2 px-3 text-muted-foreground">
-                  <Plus className="size-3.5" />
-                  <span className="text-sm">Add row</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

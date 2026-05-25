@@ -47,7 +47,7 @@ import type {
 } from "@/types/data-grid";
 
 const DEFAULT_ROW_HEIGHT = "short";
-const OVERSCAN = 6;
+const OVERSCAN = 10;
 const VIEWPORT_OFFSET = 1;
 const HORIZONTAL_PAGE_SIZE = 5;
 const SCROLL_SYNC_RETRY_COUNT = 16;
@@ -98,6 +98,21 @@ interface DataGridStore {
   notify: () => void;
   batch: (fn: () => void) => void;
 }
+
+// Module-level selectors — stable references so getSnapshot never rebuilds
+const selectFocusedCell = (s: DataGridState) => s.focusedCell;
+const selectEditingCell = (s: DataGridState) => s.editingCell;
+const selectSelectionState = (s: DataGridState) => s.selectionState;
+const selectSearchQuery = (s: DataGridState) => s.searchQuery;
+const selectSearchMatches = (s: DataGridState) => s.searchMatches;
+const selectMatchIndex = (s: DataGridState) => s.matchIndex;
+const selectSearchOpen = (s: DataGridState) => s.searchOpen;
+const selectSorting = (s: DataGridState) => s.sorting;
+const selectColumnFilters = (s: DataGridState) => s.columnFilters;
+const selectRowSelection = (s: DataGridState) => s.rowSelection;
+const selectRowHeight = (s: DataGridState) => s.rowHeight;
+const selectContextMenu = (s: DataGridState) => s.contextMenu;
+const selectPasteDialog = (s: DataGridState) => s.pasteDialog;
 
 function useStore<T>(
   store: DataGridStore,
@@ -257,19 +272,19 @@ function useDataGrid<TData>({
     };
   }, [listenersRef, stateRef]);
 
-  const focusedCell = useStore(store, (state) => state.focusedCell);
-  const editingCell = useStore(store, (state) => state.editingCell);
-  const selectionState = useStore(store, (state) => state.selectionState);
-  const searchQuery = useStore(store, (state) => state.searchQuery);
-  const searchMatches = useStore(store, (state) => state.searchMatches);
-  const matchIndex = useStore(store, (state) => state.matchIndex);
-  const searchOpen = useStore(store, (state) => state.searchOpen);
-  const sorting = useStore(store, (state) => state.sorting);
-  const columnFilters = useStore(store, (state) => state.columnFilters);
-  const rowSelection = useStore(store, (state) => state.rowSelection);
-  const rowHeight = useStore(store, (state) => state.rowHeight);
-  const contextMenu = useStore(store, (state) => state.contextMenu);
-  const pasteDialog = useStore(store, (state) => state.pasteDialog);
+  const focusedCell = useStore(store, selectFocusedCell);
+  const editingCell = useStore(store, selectEditingCell);
+  const selectionState = useStore(store, selectSelectionState);
+  const searchQuery = useStore(store, selectSearchQuery);
+  const searchMatches = useStore(store, selectSearchMatches);
+  const matchIndex = useStore(store, selectMatchIndex);
+  const searchOpen = useStore(store, selectSearchOpen);
+  const sorting = useStore(store, selectSorting);
+  const columnFilters = useStore(store, selectColumnFilters);
+  const rowSelection = useStore(store, selectRowSelection);
+  const rowHeight = useStore(store, selectRowHeight);
+  const contextMenu = useStore(store, selectContextMenu);
+  const pasteDialog = useStore(store, selectPasteDialog);
 
   const rowHeightValue = getRowHeightValue(rowHeight);
 
@@ -1526,16 +1541,10 @@ function useDataGrid<TData>({
       for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
         const row = rows[rowIndex];
         if (!row) continue;
-
-        const cellById = new Map(
-          row.getVisibleCells().map((c) => [c.column.id, c]),
-        );
+        const original = row.original as Record<string, unknown>;
 
         for (const columnId of columnIds) {
-          const cell = cellById.get(columnId);
-          if (!cell) continue;
-
-          const value = cell.getValue();
+          const value = original[columnId];
           const stringValue = String(value ?? "").toLowerCase();
 
           if (stringValue.includes(lowerQuery)) {
@@ -2190,16 +2199,17 @@ function useDataGrid<TData>({
     tableRef.current = table;
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: columnSizingInfo and columnSizing are used for calculating the column size vars
+  // biome-ignore lint/correctness/useExhaustiveDependencies: columnSizingInfo, columnSizing, and columnVisibility are used for calculating the column size vars
   const columnSizeVars = React.useMemo(() => {
-    const headers = table.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
-    for (const header of headers) {
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+    // Iterate all leaf columns (visible + hidden) so CSS vars exist the moment a column becomes visible
+    for (const column of table.getAllLeafColumns()) {
+      const size = column.getSize();
+      colSizes[`--header-${column.id}-size`] = size;
+      colSizes[`--col-${column.id}-size`] = size;
     }
     return colSizes;
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  }, [table.getState().columnSizingInfo, table.getState().columnSizing, table.getState().columnVisibility]);
 
   const isFirefox = React.useSyncExternalStore(
     React.useCallback(() => () => {}, []),
@@ -3230,6 +3240,10 @@ function useDataGrid<TData>({
       pasteDialog,
       onRowAdd: propsRef.current.onRowAdd ? onRowAdd : undefined,
       adjustLayout,
+      // Included so React.memo(DataGrid) re-renders when sorting changes.
+      // DataGrid reads table.getRowModel().rows directly, but won't be called
+      // unless at least one prop reference changes.
+      sorting,
     }),
     [
       propsRef,
@@ -3252,6 +3266,7 @@ function useDataGrid<TData>({
       pasteDialog,
       onRowAdd,
       adjustLayout,
+      sorting,
     ],
   );
 }

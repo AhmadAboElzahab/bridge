@@ -21,6 +21,10 @@ func Run(arg string) {
 		SeedSkills()
 	case "maids":
 		SeedMaidFormFields()
+	case "users":
+		SeedUserFormFields()
+	case "userstabs":
+		SeedUserTabs()
 	// plop:cases
 	case "fakemaids":
 		var langs []models.Language
@@ -36,6 +40,7 @@ func Run(arg string) {
 		SeedSkills()
 		SeedUserFormFields()
 		SeedMaidFormFields()
+		SeedUserTabs()
 		// plop:all
 	default:
 		log.Fatalf("❌ Unknown seed type: %s\n", arg)

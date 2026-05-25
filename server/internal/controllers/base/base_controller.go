@@ -63,35 +63,6 @@ func (c *BaseController) Index(ctx *gin.Context) {
 	}
 }
 
-func discoverRelations(t reflect.Type) map[string]reflect.Type {
-	relations := map[string]reflect.Type{}
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-
-		if !field.IsExported() || field.Anonymous {
-			continue
-		}
-
-		if field.Type.String() == "gorm.DeletedAt" || field.Type.PkgPath() == "gorm.io/gorm" || field.Type.PkgPath() == "time" {
-			continue
-		}
-
-		kind := field.Type.Kind()
-
-		if kind == reflect.Slice && field.Type.Elem().Kind() == reflect.Struct {
-			relations[field.Name] = field.Type
-			continue
-		}
-
-		if kind == reflect.Struct && field.Type.Name() != "" && field.Type.PkgPath() != "" {
-			relations[field.Name] = field.Type
-		}
-	}
-
-	return relations
-}
-
 func (c *BaseController) Store(ctx *gin.Context) {}
 
 func (c *BaseController) Show(ctx *gin.Context) {

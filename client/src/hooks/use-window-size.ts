@@ -22,27 +22,23 @@ export function useWindowSize(props: UseWindowSizeProps = {}): WindowSize {
   });
 
   useIsomorphicLayoutEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null;
+    let rafId: number | null = null;
 
     function onResize() {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-
-      timeoutId = setTimeout(() => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
         setWindowSize({
           width: window.innerWidth,
           height: window.innerHeight,
         });
-      }, 150);
+        rafId = null;
+      });
     }
 
     window.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("resize", onResize);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);
 

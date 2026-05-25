@@ -281,6 +281,22 @@ FormFields are seeded records (not hardcoded) that define:
 
 Seeded in: `internal/database/seeder/maids_form_fields.go`, `user_form_fields.go`
 
+### CRITICAL: FieldKey naming rule
+
+**`FieldKey` MUST exactly match the model's `json:""` tag — always snake_case.**
+
+The frontend's `normalizeRow` does `row[field.field_key]` to extract values from the API response. The API serializes Go structs using their `json:""` tags, which are snake_case (e.g. `json:"first_name"`). If `FieldKey` is PascalCase (e.g. `"FirstName"`), the lookup finds nothing and every cell renders empty even though rows are present.
+
+```go
+// WRONG — causes silent empty cells in the frontend
+{Label: "First Name", FieldKey: "FirstName", ...}
+
+// CORRECT — must match the model's json tag exactly
+{Label: "First Name", FieldKey: "first_name", ...}
+```
+
+When adding a new model's form fields, always cross-reference the struct's `json:""` tags in `internal/models/` before writing any `FieldKey` value. The `user_tab_columns` table mirrors these keys — a mismatch there also breaks column config persistence.
+
 ---
 
 ## Tab System
@@ -309,3 +325,4 @@ The `POST /api/{model}/index` endpoint:
 7. **`models.Patient`** referenced in Swagger docs — does not exist (dead reference)
 8. **`BaseController.Show` and `Delete` use `gin.H` directly** instead of `utils.ErrorJSON`
 9. **OR filter conjunction skips nested groups** — `applyGroupFilters` has a `continue` for OR+subgroup case
+10. **`user_form_fields.go` was seeded with PascalCase FieldKeys** (`"FirstName"` etc.) — fixed 2026-05-25 via direct DB UPDATE. See FormField System → FieldKey naming rule above.

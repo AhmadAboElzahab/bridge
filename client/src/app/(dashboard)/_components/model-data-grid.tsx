@@ -1,8 +1,8 @@
 "use client";
 
 import { DirectionProvider } from "@radix-ui/react-direction";
-import { useQuery } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import * as React from "react";
 import { AdvancedFilter } from "@/components/advanced-filter";
 import { fromApiFilter } from "@/components/advanced-filter/to-api-filter";
@@ -12,8 +12,10 @@ import { DataGridKeyboardShortcuts } from "@/components/data-grid/data-grid-keyb
 import { DataGridRowHeightMenu } from "@/components/data-grid/data-grid-row-height-menu";
 import { getDataGridSelectColumn } from "@/components/data-grid/data-grid-select-column";
 import { DataGridSortMenu } from "@/components/data-grid/data-grid-sort-menu";
+import type { ColumnSavePayload } from "@/components/data-grid/data-grid-view-menu";
 import { DataGridViewMenu } from "@/components/data-grid/data-grid-view-menu";
 import { useDataGrid } from "@/hooks/use-data-grid";
+import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import { useWindowSize } from "@/hooks/use-window-size";
 import { getFilterFn } from "@/lib/data-grid-filters";
 import { toast } from "sonner";
@@ -23,6 +25,7 @@ import {
   PAGE_SIZE,
   updateModelRow,
 } from "@/services/data.service";
+import { updateTabColumns, updateTabSorting } from "@/services/tabs.service";
 import type { FieldType, FilterGroup, FormField, UserTab } from "@/types/api";
 import type { CellOpts } from "@/types/data-grid";
 
@@ -242,6 +245,7 @@ interface ModelDataGridProps {
 }
 
 export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
+  const queryClient = useQueryClient();
   const windowSize = useWindowSize({ defaultHeight: 760 });
   const [data, setData] = React.useState<Row[]>([]);
   const prevDataRef = React.useRef<Row[]>([]);
@@ -250,7 +254,30 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     FilterGroup | Record<string, never>
   >(() => (tab.filters && "type" in tab.filters ? tab.filters : {}));
 
+  // apiSorting drives the backend ORDER BY — it mirrors the TanStack sort state
+  const [apiSorting, setApiSorting] = React.useState<SortingState>(
+    () => tab.sorting ?? [],
+  );
+
+  // Persist sort state to the tab record (debounced) and re-fetch from page 1
+  const saveSortingTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSortingChange = React.useCallback(
+    (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+      const next = typeof updater === "function" ? updater(apiSorting) : updater;
+      setApiSorting(next);
+      setPage(1);
+      setData([]);
+      prevDataRef.current = [];
+      if (saveSortingTimerRef.current) clearTimeout(saveSortingTimerRef.current);
+      saveSortingTimerRef.current = setTimeout(() => {
+        void updateTabSorting(tab.id, next);
+      }, 600);
+    },
+    [tab.id, apiSorting],
+  );
+
   // Reset page and filters when the active tab changes
+  // (sorting + full state reset handled by key={tab.id} remount in the parent)
   const prevTabIdRef = React.useRef(tab.id);
   if (prevTabIdRef.current !== tab.id) {
     prevTabIdRef.current = tab.id;
@@ -291,11 +318,12 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
   );
 
   const { data: apiData } = useQuery({
-    queryKey: [model, tab.id, page, apiFilters],
+    queryKey: [model, tab.id, page, apiFilters, apiSorting],
     queryFn: () =>
       fetchModelIndex(model, {
         tab_id: tab.id,
         filters: apiFilters,
+        sorting: apiSorting.map((s) => ({ field_key: s.id, desc: s.desc })),
         search_term: tab.search_term ?? "",
         columns: tab.columns,
         page,
@@ -303,12 +331,33 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         search: "",
       }),
     placeholderData: (prev) => prev,
+    staleTime: 30_000,
   });
 
   const totalRowCount = apiData?.meta?.totalRowCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalRowCount / PAGE_SIZE));
 
+  // Prefetch next page so pagination feels instant
   React.useEffect(() => {
+    if (page >= totalPages) return;
+    void queryClient.prefetchQuery({
+      queryKey: [model, tab.id, page + 1, apiFilters, apiSorting],
+      queryFn: () =>
+        fetchModelIndex(model, {
+          tab_id: tab.id,
+          filters: apiFilters,
+          sorting: apiSorting.map((s) => ({ field_key: s.id, desc: s.desc })),
+          search_term: tab.search_term ?? "",
+          columns: tab.columns,
+          page: page + 1,
+          size: PAGE_SIZE,
+          search: "",
+        }),
+      staleTime: 30_000,
+    });
+  }, [model, tab, page, apiFilters, totalPages, queryClient]);
+
+  useIsomorphicLayoutEffect(() => {
     if (apiData?.data) {
       const rows = (apiData.data as Row[]).map((r) =>
         normalizeRow(r, formFields),
@@ -331,7 +380,10 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
       prevDataRef.current = newData;
       setData(newData);
 
-      const patches: Array<{ rowId: number | string; changed: Record<string, unknown> }> = [];
+      const patches: Array<{
+        rowId: number | string;
+        changed: Record<string, unknown>;
+      }> = [];
 
       for (let i = 0; i < newData.length; i++) {
         const newRow = newData[i];
@@ -374,7 +426,9 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
 
       try {
         await Promise.all(
-          patches.map(({ rowId, changed }) => updateModelRow(model, rowId, changed)),
+          patches.map(({ rowId, changed }) =>
+            updateModelRow(model, rowId, changed),
+          ),
         );
       } catch {
         // Rollback optimistic update on failure
@@ -397,31 +451,32 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     [tab.columns],
   );
 
-  const columns = React.useMemo<ColumnDef<Row>[]>(() => {
+  const sortedFields = React.useMemo(() => {
     const colMap = new Map(tab.columns.map((c) => [c.field_key, c]));
-    const sorted = [...formFields].sort((a, b) => {
+    return [...formFields].sort((a, b) => {
       const aOrder = colMap.get(a.field_key)?.order ?? a.table_order;
       const bOrder = colMap.get(b.field_key)?.order ?? b.table_order;
       return aOrder - bOrder;
     });
+  }, [formFields, tab.columns]);
 
+  const columns = React.useMemo<ColumnDef<Row>[]>(() => {
+    const colMap = new Map(tab.columns.map((c) => [c.field_key, c]));
     return [
       getDataGridSelectColumn<Row>({ enableRowMarkers: true }),
-      ...sorted.map(
-        (field): ColumnDef<Row> => ({
-          id: field.field_key,
-          accessorKey: field.field_key,
-          header: field.label,
-          minSize: colMap.get(field.field_key)?.width ?? 180,
-          filterFn,
-          meta: {
-            label: field.label,
-            cell: fieldTypeToCellOpts(field),
-          },
-        }),
-      ),
+      ...sortedFields.map((field): ColumnDef<Row> => ({
+        id: field.field_key,
+        accessorKey: field.field_key,
+        header: field.label,
+        minSize: colMap.get(field.field_key)?.width ?? 180,
+        filterFn,
+        meta: {
+          label: field.label,
+          cell: fieldTypeToCellOpts(field),
+        },
+      })),
     ];
-  }, [formFields, tab.columns, filterFn]);
+  }, [sortedFields, tab.columns, filterFn]);
 
   const onFilesUpload = React.useCallback(
     async ({
@@ -442,16 +497,50 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     [],
   );
 
+  const getRowId = React.useCallback((row: Row) => String(row.id ?? ""), []);
+
+  const columnOrder = React.useMemo(
+    () => ["select", ...sortedFields.map((f) => f.field_key)],
+    [sortedFields],
+  );
+
+  const handleSaveColumns = React.useCallback(
+    async (
+      cols: import("@/components/data-grid/data-grid-view-menu").ColumnSavePayload[],
+    ) => {
+      try {
+        await updateTabColumns(
+          tab.id,
+          cols.map((c) => ({
+            field_key: c.id,
+            visible: c.visible,
+            order: c.order,
+          })),
+        );
+        void queryClient.invalidateQueries({
+          queryKey: ["tabs", tab.model_name],
+        });
+      } catch {
+        toast.error("Failed to save column settings");
+      }
+    },
+    [tab.id, tab.model_name, queryClient],
+  );
+
   const { table, ...dataGridProps } = useDataGrid({
     data,
     columns,
     onDataChange: handleDataChange,
     onFilesUpload,
-    getRowId: (row) => String(row.id ?? ""),
+    getRowId,
     initialState: {
       columnPinning: { left: ["select"] },
       columnVisibility,
+      columnOrder,
+      sorting: tab.sorting ?? [],
     },
+    manualSorting: true,
+    onSortingChange: handleSortingChange,
     enableSearch: true,
     enablePaste: true,
   });
@@ -460,7 +549,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
 
   return (
     <DirectionProvider dir="ltr">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col">
         <div
           role="toolbar"
           aria-orientation="horizontal"
@@ -474,7 +563,11 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
           />
           <DataGridSortMenu table={table} align="end" />
           <DataGridRowHeightMenu table={table} align="end" />
-          <DataGridViewMenu table={table} align="end" />
+          <DataGridViewMenu
+            table={table}
+            align="end"
+            onSaveColumns={handleSaveColumns}
+          />
         </div>
         <DataGridKeyboardShortcuts enableSearch={!!dataGridProps.searchState} />
         <DataGrid {...dataGridProps} table={table} height={height} />

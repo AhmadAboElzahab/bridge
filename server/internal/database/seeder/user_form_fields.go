@@ -12,7 +12,7 @@ func SeedUserFormFields() {
 	fields := []models.FormField{
 		{
 			Label:     "First Name",
-			FieldKey:  "FirstName",
+			FieldKey:  "first_name",
 			ModelName: constants.USER,
 			HelpText:  "",
 
@@ -28,7 +28,7 @@ func SeedUserFormFields() {
 		},
 		{
 			Label:     "Last Name",
-			FieldKey:  "LastName",
+			FieldKey:  "last_name",
 			ModelName: constants.USER,
 			HelpText:  "",
 
@@ -44,7 +44,7 @@ func SeedUserFormFields() {
 		},
 		{
 			Label:     "Email",
-			FieldKey:  "Email",
+			FieldKey:  "email",
 			ModelName: constants.USER,
 			HelpText:  "",
 
@@ -60,7 +60,7 @@ func SeedUserFormFields() {
 		},
 		{
 			Label:     "Date of Birth",
-			FieldKey:  "DateOfBirth",
+			FieldKey:  "date_of_birth",
 			ModelName: constants.USER,
 			HelpText:  "",
 
@@ -76,7 +76,7 @@ func SeedUserFormFields() {
 		},
 		{
 			Label:     "Avatar",
-			FieldKey:  "Avatar",
+			FieldKey:  "avatar",
 			ModelName: constants.USER,
 			HelpText:  "",
 

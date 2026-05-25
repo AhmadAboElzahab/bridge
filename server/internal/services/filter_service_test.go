@@ -11,7 +11,7 @@ import (
 
 func TestBuildCondition_IsOperators(t *testing.T) {
 	for _, op := range []string{"is", "=", "==", "isExactly"} {
-		sql, val := buildCondition("name", op, "Ahmad", nil)
+		sql, val := buildCondition("name", op, "Ahmad")
 		if sql != "name = ?" {
 			t.Errorf("op=%q: got SQL %q, want %q", op, sql, "name = ?")
 		}
@@ -23,7 +23,7 @@ func TestBuildCondition_IsOperators(t *testing.T) {
 
 func TestBuildCondition_IsNotOperators(t *testing.T) {
 	for _, op := range []string{"isNot", "!="} {
-		sql, val := buildCondition("name", op, "Ahmad", nil)
+		sql, val := buildCondition("name", op, "Ahmad")
 		if sql != "name != ?" {
 			t.Errorf("op=%q: got SQL %q, want %q", op, sql, "name != ?")
 		}
@@ -34,7 +34,7 @@ func TestBuildCondition_IsNotOperators(t *testing.T) {
 }
 
 func TestBuildCondition_Contains(t *testing.T) {
-	sql, val := buildCondition("bio", "contains", "nurse", nil)
+	sql, val := buildCondition("bio", "contains", "nurse")
 	if sql != "bio ILIKE ?" {
 		t.Errorf("got SQL %q, want %q", sql, "bio ILIKE ?")
 	}
@@ -44,7 +44,7 @@ func TestBuildCondition_Contains(t *testing.T) {
 }
 
 func TestBuildCondition_DoesNotContain(t *testing.T) {
-	sql, val := buildCondition("bio", "doesNotContain", "nurse", nil)
+	sql, val := buildCondition("bio", "doesNotContain", "nurse")
 	if sql != "bio NOT ILIKE ?" {
 		t.Errorf("got SQL %q, want %q", sql, "bio NOT ILIKE ?")
 	}
@@ -54,7 +54,7 @@ func TestBuildCondition_DoesNotContain(t *testing.T) {
 }
 
 func TestBuildCondition_IsEmpty(t *testing.T) {
-	sql, val := buildCondition("bio", "isEmpty", nil, nil)
+	sql, val := buildCondition("bio", "isEmpty", nil)
 	if sql != "bio IS NULL" {
 		t.Errorf("got SQL %q, want %q", sql, "bio IS NULL")
 	}
@@ -64,7 +64,7 @@ func TestBuildCondition_IsEmpty(t *testing.T) {
 }
 
 func TestBuildCondition_IsNotEmpty(t *testing.T) {
-	sql, val := buildCondition("bio", "isNotEmpty", nil, nil)
+	sql, val := buildCondition("bio", "isNotEmpty", nil)
 	if sql != "bio IS NOT NULL" {
 		t.Errorf("got SQL %q, want %q", sql, "bio IS NOT NULL")
 	}
@@ -85,7 +85,7 @@ func TestBuildCondition_ComparisonOperators(t *testing.T) {
 		{"isOnOrAfter", "age >= ?"},
 	}
 	for _, tc := range cases {
-		sql, val := buildCondition("age", tc.op, 25, nil)
+		sql, val := buildCondition("age", tc.op, 25)
 		if sql != tc.wantSQL {
 			t.Errorf("op=%q: got SQL %q, want %q", tc.op, sql, tc.wantSQL)
 		}
@@ -99,46 +99,95 @@ func TestBuildCondition_SetOperators(t *testing.T) {
 	vals := []interface{}{"Available", "Hired"}
 
 	for _, op := range []string{"isAnyOf", "hasAnyOf"} {
-		sql, _ := buildCondition("status", op, vals, nil)
+		sql, _ := buildCondition("status", op, vals)
 		if sql != "status IN (?)" {
 			t.Errorf("op=%q: got SQL %q, want %q", op, sql, "status IN (?)")
 		}
 	}
 	for _, op := range []string{"hasNoneOf", "isNoneOf"} {
-		sql, _ := buildCondition("status", op, vals, nil)
+		sql, _ := buildCondition("status", op, vals)
 		if sql != "status NOT IN (?)" {
 			t.Errorf("op=%q: got SQL %q, want %q", op, sql, "status NOT IN (?)")
 		}
 	}
 
-	sql, _ := buildCondition("tags", "hasAllOf", vals, nil)
+	sql, _ := buildCondition("tags", "hasAllOf", vals)
 	if sql != "tags @> ?" {
 		t.Errorf("got SQL %q, want %q", sql, "tags @> ?")
 	}
 }
 
-func TestBuildCondition_IsWithin(t *testing.T) {
-	secondOp := &models.Operator{Label: "today", Value: "today"}
-	sql, val := buildCondition("created_at", "isWithin", "", secondOp)
-	if !strings.Contains(sql, "created_at >= ?") {
-		t.Errorf("isWithin+today: got SQL %q, want time range condition", sql)
-	}
-	if vals, ok := val.([]interface{}); !ok || len(vals) != 2 {
-		t.Errorf("isWithin+today: val should be []interface{} with 2 elements, got %v", val)
-	}
-}
-
-func TestBuildCondition_IsWithinNoSecondOp(t *testing.T) {
-	sql, val := buildCondition("created_at", "isWithin", "", nil)
-	if sql != "" || val != nil {
-		t.Errorf("isWithin with no secondOp should return empty, got SQL=%q val=%v", sql, val)
-	}
-}
-
 func TestBuildCondition_UnknownOperator(t *testing.T) {
-	sql, val := buildCondition("name", "doesNotExist", "x", nil)
+	sql, val := buildCondition("name", "doesNotExist", "x")
 	if sql != "" || val != nil {
 		t.Errorf("unknown operator should return empty, got SQL=%q val=%v", sql, val)
+	}
+}
+
+// handleDateRangeCondition (isWithin logic)
+
+func TestHandleDateRangeCondition_Today(t *testing.T) {
+	sql, val := handleDateRangeCondition("created_at", "today", "")
+	if !strings.Contains(sql, "created_at >= ?") || !strings.Contains(sql, "created_at < ?") {
+		t.Errorf("today: got SQL %q, want range condition with >= and <", sql)
+	}
+	vals, ok := val.([]interface{})
+	if !ok || len(vals) != 2 {
+		t.Errorf("today: val should be []interface{} with 2 elements, got %v", val)
+	}
+}
+
+func TestHandleDateRangeCondition_ExactDate(t *testing.T) {
+	sql, val := handleDateRangeCondition("date_of_birth", "exactDate", "2000-01-15")
+	if sql != "date_of_birth = ?" {
+		t.Errorf("exactDate: got SQL %q, want %q", sql, "date_of_birth = ?")
+	}
+	if val == nil {
+		t.Error("exactDate: val should not be nil")
+	}
+}
+
+func TestHandleDateRangeCondition_InvalidExactDate(t *testing.T) {
+	sql, val := handleDateRangeCondition("date_of_birth", "exactDate", "not-a-date")
+	if sql != "" || val != nil {
+		t.Errorf("invalid date should return empty, got SQL=%q val=%v", sql, val)
+	}
+}
+
+func TestHandleDateRangeCondition_NumberOfDaysAgo(t *testing.T) {
+	sql, val := handleDateRangeCondition("created_at", "numberOfDaysAgo", "7")
+	if sql != "created_at >= ?" {
+		t.Errorf("numberOfDaysAgo: got SQL %q, want %q", sql, "created_at >= ?")
+	}
+	if val == nil {
+		t.Error("numberOfDaysAgo: val should not be nil")
+	}
+}
+
+func TestHandleDateRangeCondition_NumberOfDaysAgoInvalidValue(t *testing.T) {
+	sql, val := handleDateRangeCondition("created_at", "numberOfDaysAgo", "notanumber")
+	if sql != "" || val != nil {
+		t.Errorf("invalid days value should return empty, got SQL=%q val=%v", sql, val)
+	}
+}
+
+func TestHandleDateRangeCondition_CalendarRanges(t *testing.T) {
+	for _, op := range []string{"thisCalendarWeek", "thisCalendarMonth", "thisCalendarYear"} {
+		sql, val := handleDateRangeCondition("created_at", op, "")
+		if !strings.Contains(sql, "BETWEEN ? AND ?") {
+			t.Errorf("op=%q: got SQL %q, want BETWEEN condition", op, sql)
+		}
+		vals, ok := val.([]interface{})
+		if !ok || len(vals) != 2 {
+			t.Errorf("op=%q: val should be []interface{} with 2 elements", op)
+		}
+	}
+}
+
+func TestHandleDateRangeCondition_UnknownOperator(t *testing.T) {
+	sql, val := handleDateRangeCondition("created_at", "unknownRange", "")
+	if sql != "" || val != nil {
+		t.Errorf("unknown range should return empty, got SQL=%q val=%v", sql, val)
 	}
 }
 
@@ -207,72 +256,5 @@ func TestExtractActualValue_PlainValue(t *testing.T) {
 	got := extractActualValue("raw")
 	if got != "raw" {
 		t.Errorf("got %v, want raw", got)
-	}
-}
-
-// handleDateRangeCondition
-
-func TestHandleDateRangeCondition_Today(t *testing.T) {
-	sql, val := handleDateRangeCondition("created_at", "today", "")
-	if !strings.Contains(sql, "created_at >= ?") || !strings.Contains(sql, "created_at < ?") {
-		t.Errorf("today: got SQL %q, want range condition with >= and <", sql)
-	}
-	vals, ok := val.([]interface{})
-	if !ok || len(vals) != 2 {
-		t.Errorf("today: val should be []interface{} with 2 elements, got %v", val)
-	}
-}
-
-func TestHandleDateRangeCondition_ExactDate(t *testing.T) {
-	sql, val := handleDateRangeCondition("date_of_birth", "exactDate", "2000-01-15")
-	if sql != "date_of_birth = ?" {
-		t.Errorf("exactDate: got SQL %q, want %q", sql, "date_of_birth = ?")
-	}
-	if val == nil {
-		t.Error("exactDate: val should not be nil")
-	}
-}
-
-func TestHandleDateRangeCondition_InvalidExactDate(t *testing.T) {
-	sql, val := handleDateRangeCondition("date_of_birth", "exactDate", "not-a-date")
-	if sql != "" || val != nil {
-		t.Errorf("invalid date should return empty, got SQL=%q val=%v", sql, val)
-	}
-}
-
-func TestHandleDateRangeCondition_NumberOfDaysAgo(t *testing.T) {
-	sql, val := handleDateRangeCondition("created_at", "numberOfDaysAgo", "7")
-	if sql != "created_at >= ?" {
-		t.Errorf("numberOfDaysAgo: got SQL %q, want %q", sql, "created_at >= ?")
-	}
-	if val == nil {
-		t.Error("numberOfDaysAgo: val should not be nil")
-	}
-}
-
-func TestHandleDateRangeCondition_NumberOfDaysAgoInvalidValue(t *testing.T) {
-	sql, val := handleDateRangeCondition("created_at", "numberOfDaysAgo", "notanumber")
-	if sql != "" || val != nil {
-		t.Errorf("invalid days value should return empty, got SQL=%q val=%v", sql, val)
-	}
-}
-
-func TestHandleDateRangeCondition_CalendarRanges(t *testing.T) {
-	for _, op := range []string{"thisCalendarWeek", "thisCalendarMonth", "thisCalendarYear"} {
-		sql, val := handleDateRangeCondition("created_at", op, "")
-		if !strings.Contains(sql, "BETWEEN ? AND ?") {
-			t.Errorf("op=%q: got SQL %q, want BETWEEN condition", op, sql)
-		}
-		vals, ok := val.([]interface{})
-		if !ok || len(vals) != 2 {
-			t.Errorf("op=%q: val should be []interface{} with 2 elements", op)
-		}
-	}
-}
-
-func TestHandleDateRangeCondition_UnknownOperator(t *testing.T) {
-	sql, val := handleDateRangeCondition("created_at", "unknownRange", "")
-	if sql != "" || val != nil {
-		t.Errorf("unknown range should return empty, got SQL=%q val=%v", sql, val)
 	}
 }
