@@ -559,7 +559,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         <div
           role="toolbar"
           aria-orientation="horizontal"
-          className="flex items-center gap-2 w-full  bg-red-200 self-end"
+          className="flex items-center gap-2 w-full   self-end"
         >
           <AdvancedFilter
             fields={filterFields}
@@ -577,13 +577,13 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         </div>
         <DataGridKeyboardShortcuts enableSearch={!!dataGridProps.searchState} />
         <DataGrid {...dataGridProps} table={table} height={height} />
-        <div className="flex items-center justify-between px-1 text-muted-foreground bg-green-200 text-sm">
+        <div className="flex items-center justify-between px-1 text-muted-foreground  text-sm">
           <span>
             {totalRowCount > 0
               ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalRowCount)} of ${totalRowCount} rows`
               : "0 rows"}
           </span>
-          <div className="flex items-center bg-red-200 gap-2">
+          <div className="flex items-center  gap-2">
             <Button
               variant="outline"
               size="sm"
