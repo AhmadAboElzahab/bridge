@@ -29,13 +29,23 @@ export function useAdvancedFilter(
   const onChangeRef = React.useRef(onChange);
   React.useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
+  const pendingChangeRef = React.useRef<FilterGroupNode | null>(null);
+
   const commit = React.useCallback((updater: (prev: FilterGroupNode) => FilterGroupNode) => {
     setRuleset((prev) => {
       const next = updater(prev);
-      onChangeRef.current(next);
+      pendingChangeRef.current = next;
       return next;
     });
   }, []);
+
+  React.useEffect(() => {
+    if (pendingChangeRef.current !== null) {
+      const next = pendingChangeRef.current;
+      pendingChangeRef.current = null;
+      onChangeRef.current(next);
+    }
+  });
 
   const addItem = React.useCallback(
     (groupId: string, field: string, operator: string) => {

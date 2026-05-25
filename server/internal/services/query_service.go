@@ -66,9 +66,26 @@ func QueryModelRecords(
 	return slicePtr, total, nil
 }
 
+// textSortFieldTypes are field types whose values are free-text strings.
+// For these we wrap the column in LOWER() so that sorting is case-insensitive
+// and produces the alphabetical order users expect (a < b … z regardless of case).
+var textSortFieldTypes = map[string]bool{
+	"string_field":             true,
+	"email_field":              true,
+	"phone_field":              true,
+	"url_field":                true,
+	"social_url_field":         true,
+	"link_field":               true,
+	"single_select":            true,
+	"radio_select":             true,
+	"creatable_single_select":  true,
+	"rich_field":               true,
+}
+
 // applySorting builds ORDER BY clauses from the client sort state.
 // For single_relation fields with a DataSource, it LEFT JOINs the related table
 // and sorts by the human-readable label column instead of the FK integer.
+// For text fields it wraps the column in LOWER() for case-insensitive ordering.
 // Always appends {table}.id ASC as a stable tiebreaker.
 func applySorting(
 	query *gorm.DB,
@@ -106,7 +123,9 @@ func applySorting(
 				))
 				joinedKeys[joinKey] = true
 			}
-			query = query.Order(fmt.Sprintf("%s.%s %s", joinTable, labelCol, dir))
+			query = query.Order(fmt.Sprintf("LOWER(%s.%s) %s", joinTable, labelCol, dir))
+		} else if textSortFieldTypes[field.FormFieldType] {
+			query = query.Order(fmt.Sprintf("LOWER(%s.%s) %s", modelTable, field.FieldKey, dir))
 		} else {
 			query = query.Order(fmt.Sprintf("%s.%s %s", modelTable, field.FieldKey, dir))
 		}

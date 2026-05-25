@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
@@ -18,7 +19,12 @@ func ConnectDatabase() {
 		log.Fatal("DB_URL environment variable is not set")
 	}
 
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	cfg := &gorm.Config{}
+	if os.Getenv("DB_DEBUG") == "true" {
+		cfg.Logger = logger.Default.LogMode(logger.Info)
+	}
+
+	DB, err = gorm.Open(postgres.Open(dsn), cfg)
 	if err != nil {
 		log.Fatal("Failed to connect to DB:", err)
 	}
