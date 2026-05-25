@@ -585,7 +585,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
           </span>
           <div className="flex items-center  gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setPage((p) => p - 1)}
               disabled={page <= 1}
@@ -596,7 +596,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
               Page {page} of {totalPages}
             </span>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setPage((p) => p + 1)}
               disabled={page >= totalPages}
