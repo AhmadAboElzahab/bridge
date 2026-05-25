@@ -7,10 +7,8 @@ export const metadata: Metadata = { title: "Users" };
 
 export default function UsersPage() {
   return (
-    <div className="container ">
-      <Suspense fallback={<DataTableSkeleton columnCount={6} rowCount={10} />}>
-        <TableContainer entityType="User" model="users" />
-      </Suspense>
-    </div>
+    <Suspense fallback={<DataTableSkeleton columnCount={6} rowCount={10} />}>
+      <TableContainer entityType="User" model="users" />
+    </Suspense>
   );
 }

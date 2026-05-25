@@ -576,7 +576,9 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
           />
         </div>
         <DataGridKeyboardShortcuts enableSearch={!!dataGridProps.searchState} />
-        <DataGrid {...dataGridProps} table={table} height={height} />
+        <div style={{ height }}>
+          <DataGrid {...dataGridProps} table={table} height={height} />
+        </div>
         <div className="flex items-center justify-between px-1 text-muted-foreground  text-sm">
           <span>
             {totalRowCount > 0

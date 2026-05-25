@@ -2992,6 +2992,47 @@ function useDataGrid<TData>({
   }, [onDataGridKeyDown]);
 
   React.useEffect(() => {
+    const el = dataGridRef.current;
+    if (!el) return;
+
+    let targetTop = el.scrollTop;
+    let targetLeft = el.scrollLeft;
+    let rafId: number | null = null;
+
+    function animate() {
+      if (!el) return;
+      const dTop = targetTop - el.scrollTop;
+      const dLeft = targetLeft - el.scrollLeft;
+
+      if (Math.abs(dTop) < 0.5 && Math.abs(dLeft) < 0.5) {
+        el.scrollTop = targetTop;
+        el.scrollLeft = targetLeft;
+        rafId = null;
+        return;
+      }
+
+      el.scrollTop += dTop * 0.12;
+      el.scrollLeft += dLeft * 0.12;
+      rafId = requestAnimationFrame(animate);
+    }
+
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      const maxTop = el!.scrollHeight - el!.clientHeight;
+      const maxLeft = el!.scrollWidth - el!.clientWidth;
+      targetTop = Math.max(0, Math.min(maxTop, targetTop + e.deltaY * 0.3));
+      targetLeft = Math.max(0, Math.min(maxLeft, targetLeft + e.deltaX * 0.3));
+      if (rafId === null) rafId = requestAnimationFrame(animate);
+    }
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  React.useEffect(() => {
     function onGlobalKeyDown(event: KeyboardEvent) {
       const dataGridElement = dataGridRef.current;
       if (!dataGridElement) return;
