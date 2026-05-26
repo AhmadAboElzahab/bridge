@@ -75,7 +75,13 @@ func (c *BaseController) Show(ctx *gin.Context) {
 	id := ctx.Param("id")
 	db := initializers.DB.WithContext(ctx.Request.Context())
 	model := c.newModelInstance()
-	if err := db.First(model, id).Error; err != nil {
+
+	query := db
+	for rel := range utils.DiscoverRelations(reflect.TypeOf(model).Elem()) {
+		query = query.Preload(rel)
+	}
+
+	if err := query.First(model, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.ErrorJSON(ctx, http.StatusNotFound, "Resource not found")
 		} else {

@@ -6,8 +6,9 @@ import {
   type ThemeProviderProps,
 } from "next-themes";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ProgressBar } from "@/components/progress-bar";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -32,6 +33,9 @@ export function Providers({ children }: React.PropsWithChildren) {
         enableSystem
       >
         <TooltipProvider delayDuration={120}>
+          <Suspense>
+            <ProgressBar />
+          </Suspense>
           <NuqsAdapter>{children}</NuqsAdapter>
         </TooltipProvider>
       </NextThemesProvider>

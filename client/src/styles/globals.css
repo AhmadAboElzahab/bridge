@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./theme.css";
+@import "nprogress/nprogress.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -151,9 +152,30 @@ html {
   }
 }
 
-@keyframes progress-bar-slide {
-  0%   { transform: translateX(-150%) scaleX(0.6); }
-  100% { transform: translateX(350%)  scaleX(0.6); }
+/* NProgress global bar */
+#nprogress {
+  pointer-events: none;
+}
+#nprogress .bar {
+  background: var(--primary);
+  position: fixed;
+  z-index: 9999;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 5px;
+}
+#nprogress .peg {
+  display: block;
+  position: absolute;
+  right: 0;
+  width: 100px;
+  height: 100%;
+  box-shadow:
+    0 0 10px var(--primary),
+    0 0 5px var(--primary);
+  opacity: 1;
+  transform: rotate(3deg) translate(0, -4px);
 }
 
 /* View Transitions — crossfade only the main content, leave header in place */

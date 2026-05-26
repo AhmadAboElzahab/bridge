@@ -47,6 +47,9 @@ func NewSearchBuilder(db *gorm.DB, baseTable string, formFields []models.FormFie
 // Build constructs the final GORM query by applying necessary JOINs and WHERE conditions
 // derived from the form field definitions and search term.
 //
+// Uses a subquery (WHERE id IN ...) instead of SELECT DISTINCT so that ORDER BY
+// expressions added later are not required to appear in the SELECT list.
+//
 // Returns:
 //   - a *gorm.DB object ready to execute with the constructed query logic
 func (s *SearchBuilder) Build() *gorm.DB {
@@ -54,16 +57,18 @@ func (s *SearchBuilder) Build() *gorm.DB {
 		s.processField(field)
 	}
 
-	db := s.DB.Table(s.BaseTable)
-	for _, join := range s.Joins {
-		db = db.Joins(join)
+	if len(s.Wheres) == 0 {
+		return s.DB
 	}
-	if len(s.Wheres) > 0 {
-		db = db.Where(strings.Join(s.Wheres, " OR "), s.Args...)
-	}
-	db = db.Distinct()
 
-	return db
+	// Build the subquery as raw SQL to avoid GORM subquery interpolation issues
+	// and SELECT DISTINCT / ORDER BY conflicts.
+	parts := []string{fmt.Sprintf("SELECT %s.id FROM %s", s.BaseTable, s.BaseTable)}
+	parts = append(parts, s.Joins...)
+	parts = append(parts, "WHERE ("+strings.Join(s.Wheres, " OR ")+")")
+	subSQL := strings.Join(parts, " ")
+
+	return s.DB.Where(fmt.Sprintf("%s.id IN (%s)", s.BaseTable, subSQL), s.Args...)
 }
 
 // processField examines an individual FormField and updates the JOIN and WHERE clauses
@@ -109,7 +114,16 @@ func (s *SearchBuilder) processField(f models.FormField) {
 		s.Wheres = append(s.Wheres, fmt.Sprintf("%s.%s ILIKE ?", alias, relLabel))
 		s.Args = append(s.Args, "%"+s.SearchTerm+"%")
 
-	case constants.TypeStringField, constants.TypeEmailField, constants.TypeRichField:
+	case constants.TypeStringField,
+		constants.TypeEmailField,
+		constants.TypeRichField,
+		constants.TypeSingleSelect,
+		constants.TypeRadioSelect,
+		constants.TypeCreatableSingleSelect,
+		constants.TypePhoneField,
+		constants.TypeUrl,
+		constants.TypeSocialUrlField,
+		constants.TypeLinkField:
 		s.Wheres = append(s.Wheres, fmt.Sprintf("%s.%s ILIKE ?", s.BaseTable, f.FieldKey))
 		s.Args = append(s.Args, "%"+s.SearchTerm+"%")
 	}

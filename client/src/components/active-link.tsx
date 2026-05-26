@@ -18,7 +18,6 @@ export function ActiveLink({ href, className, ...props }: ActiveLinkProps) {
   return (
     <Button variant="ghost" size="sm" asChild>
       <Link
-        viewTransition
         data-state={isActive ? "active" : "inactive"}
         href={href}
         className={cn(

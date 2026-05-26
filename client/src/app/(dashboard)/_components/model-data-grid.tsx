@@ -3,7 +3,7 @@
 import { DirectionProvider } from "@radix-ui/react-direction";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { MoveDiagonal } from "lucide-react";
+import { MoveDiagonal, Search, X } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import * as React from "react";
 import { AdvancedFilter } from "@/components/advanced-filter";
@@ -14,7 +14,6 @@ import { DataGridKeyboardShortcuts } from "@/components/data-grid/data-grid-keyb
 import { DataGridRowHeightMenu } from "@/components/data-grid/data-grid-row-height-menu";
 import { getDataGridSelectColumn } from "@/components/data-grid/data-grid-select-column";
 import { DataGridSortMenu } from "@/components/data-grid/data-grid-sort-menu";
-import type { ColumnSavePayload } from "@/components/data-grid/data-grid-view-menu";
 import { DataGridViewMenu } from "@/components/data-grid/data-grid-view-menu";
 import { useDataGrid } from "@/hooks/use-data-grid";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
@@ -350,7 +349,7 @@ function ProfileFieldEditor({
           {field.label}
         </Label>
         <Select value={String(value ?? "")} onValueChange={onChange}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Select…" />
           </SelectTrigger>
           <SelectContent>
@@ -408,7 +407,7 @@ function ProfileFieldEditor({
               if (v && !arr.includes(v)) onChange([...arr, v]);
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Add…" />
             </SelectTrigger>
             <SelectContent>
@@ -426,7 +425,7 @@ function ProfileFieldEditor({
 
   if (type === "rich_field") {
     return (
-      <div className="flex flex-col gap-1.5 sm:col-span-2">
+      <div className="flex flex-col gap-1.5">
         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           {field.label}
         </Label>
@@ -602,6 +601,7 @@ function RowProfileModal({
   fieldTypeMap,
   onClose,
   onSaved,
+  onRowUpdated,
 }: {
   profileId: string | null;
   model: string;
@@ -609,6 +609,7 @@ function RowProfileModal({
   fieldTypeMap: Map<string, FieldType>;
   onClose: () => void;
   onSaved: () => void;
+  onRowUpdated: (id: string, data: Row) => void;
 }) {
   const { data: rawRow, isLoading } = useQuery({
     queryKey: ["profile", model, profileId],
@@ -620,9 +621,14 @@ function RowProfileModal({
   const [localData, setLocalData] = React.useState<Row | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
 
+  // Reset when switching to a different row
+  React.useEffect(() => {
+    setLocalData(null);
+  }, [profileId]);
+
+  // Populate once the fetch resolves
   React.useEffect(() => {
     if (rawRow) setLocalData(normalizeRow(rawRow as Row, formFields));
-    else setLocalData(null);
   }, [rawRow, formFields]);
 
   const nameField = formFields.find((f) =>
@@ -697,6 +703,7 @@ function RowProfileModal({
       ]);
 
       toast.success("Saved");
+      onRowUpdated(profileId, localData);
       onSaved();
     } catch {
       toast.error("Failed to save");
@@ -715,25 +722,27 @@ function RowProfileModal({
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle>{isLoading ? "Loading…" : title}</DialogTitle>
         </DialogHeader>
-        <div className="overflow-y-auto flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 px-6 py-6">
-          {isLoading ? (
-            <div className="col-span-2 flex items-center justify-center py-12 text-sm text-muted-foreground">
+        <div className="overflow-y-auto flex-1 px-6 py-6">
+          {isLoading || !localData ? (
+            <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
               Loading…
             </div>
-          ) : localData ? (
-            visibleFields.map((field) => (
-              <ProfileFieldEditor
-                key={field.field_key}
-                field={field}
-                value={localData[field.field_key]}
-                onChange={(val) =>
-                  setLocalData((prev) =>
-                    prev ? { ...prev, [field.field_key]: val } : null,
-                  )
-                }
-              />
-            ))
-          ) : null}
+          ) : (
+            <div key={profileId ?? ""} className="flex flex-col gap-5">
+              {visibleFields.map((field) => (
+                <ProfileFieldEditor
+                  key={field.field_key}
+                  field={field}
+                  value={localData[field.field_key]}
+                  onChange={(val) =>
+                    setLocalData((prev) =>
+                      prev ? { ...prev, [field.field_key]: val } : null,
+                    )
+                  }
+                />
+              ))}
+            </div>
+          )}
         </div>
         <DialogFooter className="px-6 py-4 border-t shrink-0">
           <Button variant="outline" onClick={onClose}>
@@ -761,7 +770,44 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
   const prevDataRef = React.useRef<Row[]>([]);
 
   const [profileId, setProfileId] = useQueryState("profile", parseAsString);
+  const [localProfileId, setLocalProfileId] = React.useState<string | null>(
+    () => profileId,
+  );
+
+  // Sync URL → local state (handles browser back/forward)
+  const prevProfileIdRef = React.useRef(profileId);
+  if (prevProfileIdRef.current !== profileId) {
+    prevProfileIdRef.current = profileId;
+    setLocalProfileId(profileId);
+  }
+
+  const [searchInputValue, setSearchInputValue] = React.useState(
+    tab.search_term ?? "",
+  );
+  const [serverSearch, setServerSearch] = React.useState(
+    tab.search_term ?? "",
+  );
+  const serverSearchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchInputChange = React.useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setSearchInputValue(value);
+      if (serverSearchTimerRef.current) clearTimeout(serverSearchTimerRef.current);
+      serverSearchTimerRef.current = setTimeout(() => {
+        setServerSearch(value.trim());
+      }, 400);
+    },
+    [],
+  );
+
+  const handleSearchClear = React.useCallback(() => {
+    setSearchInputValue("");
+    setServerSearch("");
+  }, []);
+
   const [page, setPage] = React.useState(1);
+
   const [apiFilters, setApiFilters] = React.useState<
     FilterGroup | Record<string, never>
   >(() => (tab.filters && "type" in tab.filters ? tab.filters : {}));
@@ -771,20 +817,15 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     () => tab.sorting ?? [],
   );
 
-  // Persist sort state to the tab record (debounced) and re-fetch from page 1
-  const saveSortingTimerRef = React.useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
+  // Persist sort state to the tab record (debounced); data stays visible during re-fetch
+  const saveSortingTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSortingChange = React.useCallback(
     (updater: SortingState | ((prev: SortingState) => SortingState)) => {
       const next =
         typeof updater === "function" ? updater(apiSorting) : updater;
       setApiSorting(next);
       setPage(1);
-      setData([]);
-      prevDataRef.current = [];
-      if (saveSortingTimerRef.current)
-        clearTimeout(saveSortingTimerRef.current);
+      if (saveSortingTimerRef.current) clearTimeout(saveSortingTimerRef.current);
       saveSortingTimerRef.current = setTimeout(() => {
         void updateTabSorting(tab.id, next);
       }, 600);
@@ -792,8 +833,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     [tab.id, apiSorting],
   );
 
-  // Reset page and filters when the active tab changes
-  // (sorting + full state reset handled by key={tab.id} remount in the parent)
+  // Reset filters when the active tab changes
   const prevTabIdRef = React.useRef(tab.id);
   if (prevTabIdRef.current !== tab.id) {
     prevTabIdRef.current = tab.id;
@@ -801,7 +841,6 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     setApiFilters(tab.filters && "type" in tab.filters ? tab.filters : {});
   }
 
-  // Reset to page 1 whenever filters change
   const handleFilterChange = React.useCallback(
     (filters: FilterGroup | Record<string, never>) => {
       setPage(1);
@@ -833,18 +872,18 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     [formFields],
   );
 
-  const { data: apiData, isFetching } = useQuery({
-    queryKey: [model, tab.id, page, apiFilters, apiSorting],
+  const { data: apiData } = useQuery({
+    queryKey: [model, tab.id, page, apiFilters, apiSorting, serverSearch],
     queryFn: () =>
       fetchModelIndex(model, {
         tab_id: tab.id,
         filters: apiFilters,
         sorting: apiSorting.map((s) => ({ field_key: s.id, desc: s.desc })),
-        search_term: tab.search_term ?? "",
+        search_term: serverSearch,
         columns: tab.columns,
         page,
         size: PAGE_SIZE,
-        search: "",
+        search: serverSearch,
       }),
     placeholderData: (prev) => prev,
     staleTime: 30_000,
@@ -857,21 +896,21 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
   React.useEffect(() => {
     if (page >= totalPages) return;
     void queryClient.prefetchQuery({
-      queryKey: [model, tab.id, page + 1, apiFilters, apiSorting],
+      queryKey: [model, tab.id, page + 1, apiFilters, apiSorting, serverSearch],
       queryFn: () =>
         fetchModelIndex(model, {
           tab_id: tab.id,
           filters: apiFilters,
           sorting: apiSorting.map((s) => ({ field_key: s.id, desc: s.desc })),
-          search_term: tab.search_term ?? "",
+          search_term: serverSearch,
           columns: tab.columns,
           page: page + 1,
           size: PAGE_SIZE,
-          search: "",
+          search: serverSearch,
         }),
       staleTime: 30_000,
     });
-  }, [model, tab, page, apiFilters, totalPages, queryClient]);
+  }, [model, tab, page, apiFilters, apiSorting, serverSearch, totalPages, queryClient]);
 
   useIsomorphicLayoutEffect(() => {
     if (apiData?.data) {
@@ -888,8 +927,45 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     [formFields],
   );
 
+  // Pending server writes: rowId → accumulated patch + relations
+  const pendingWritesRef = React.useRef<
+    Map<string | number, { patch: Record<string, unknown>; relations: { fieldKey: string; ids: number[] }[] }>
+  >(new Map());
+  const writeFlushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushWrites = React.useCallback(async () => {
+    const pending = pendingWritesRef.current;
+    if (pending.size === 0) return;
+    pendingWritesRef.current = new Map();
+
+    const calls: Promise<void>[] = [];
+    for (const [rowId, { patch, relations }] of pending) {
+      if (Object.keys(patch).length > 0) {
+        calls.push(updateModelRow(model, rowId, patch));
+      }
+      for (const { fieldKey, ids } of relations) {
+        calls.push(updateModelRelation(model, rowId, fieldKey, ids));
+      }
+    }
+
+    try {
+      await Promise.all(calls);
+    } catch {
+      toast.error("Failed to save changes");
+      void queryClient.invalidateQueries({ queryKey: [model] });
+    }
+  }, [model, queryClient]);
+
+  // Flush on unmount so no pending writes are lost
+  React.useEffect(() => {
+    return () => {
+      if (writeFlushTimerRef.current) clearTimeout(writeFlushTimerRef.current);
+      void flushWrites();
+    };
+  }, [flushWrites]);
+
   const handleDataChange = React.useCallback(
-    async (newData: Row[]) => {
+    (newData: Row[]) => {
       const prevData = prevDataRef.current;
 
       // Optimistic update: show new values immediately
@@ -1006,23 +1082,27 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         }
       }
 
-      try {
-        await Promise.all([
-          ...patches.map(({ rowId, changed }) =>
-            updateModelRow(model, rowId, changed),
-          ),
-          ...relationPatches.map(({ rowId, fieldKey, ids }) =>
-            updateModelRelation(model, rowId, fieldKey, ids),
-          ),
-        ]);
-      } catch {
-        // Rollback optimistic update on failure
-        prevDataRef.current = prevData;
-        setData(prevData);
-        toast.error("Failed to save changes");
+      // Queue writes — merge into pending map so rapid edits to the same row collapse
+      for (const { rowId, changed } of patches) {
+        const existing = pendingWritesRef.current.get(rowId) ?? { patch: {}, relations: [] };
+        pendingWritesRef.current.set(rowId, {
+          patch: { ...existing.patch, ...changed },
+          relations: existing.relations,
+        });
       }
+      for (const { rowId, fieldKey, ids } of relationPatches) {
+        const existing = pendingWritesRef.current.get(rowId) ?? { patch: {}, relations: [] };
+        const otherRelations = existing.relations.filter((r) => r.fieldKey !== fieldKey);
+        pendingWritesRef.current.set(rowId, {
+          patch: existing.patch,
+          relations: [...otherRelations, { fieldKey, ids }],
+        });
+      }
+
+      if (writeFlushTimerRef.current) clearTimeout(writeFlushTimerRef.current);
+      writeFlushTimerRef.current = setTimeout(() => { void flushWrites(); }, 500);
     },
-    [model, fieldTypeMap],
+    [fieldTypeMap, flushWrites],
   );
 
   const filterFn = React.useMemo(() => getFilterFn<Row>(), []);
@@ -1055,7 +1135,9 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              void setProfileId(String(row.original.id));
+              const id = String(row.original.id);
+              setLocalProfileId(id);
+              void setProfileId(id);
             }}
             className="rounded p-0.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-accent transition-all"
             aria-label="Open profile"
@@ -1069,7 +1151,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
       enableResizing: false,
       enableSorting: false,
     }),
-    [setProfileId],
+    [setLocalProfileId, setProfileId],
   );
 
   const columns = React.useMemo<ColumnDef<Row>[]>(() => {
@@ -1173,6 +1255,24 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     enablePaste: true,
   });
 
+  const originalOnSearchRef = React.useRef(dataGridProps.searchState?.onSearch);
+  React.useEffect(() => {
+    originalOnSearchRef.current = dataGridProps.searchState?.onSearch;
+  }, [dataGridProps.searchState?.onSearch]);
+
+  const handleSearch = React.useCallback((query: string) => {
+    originalOnSearchRef.current?.(query);
+    if (serverSearchTimerRef.current) clearTimeout(serverSearchTimerRef.current);
+    serverSearchTimerRef.current = setTimeout(() => {
+      setServerSearch(query.trim());
+    }, 400);
+  }, []);
+
+  const patchedSearchState = React.useMemo(() => {
+    if (!dataGridProps.searchState) return undefined;
+    return { ...dataGridProps.searchState, onSearch: handleSearch };
+  }, [dataGridProps.searchState, handleSearch]);
+
   // Start invisible so the very first paint is opacity:0 — useEffect fires after
   // paint and triggers the CSS transition, avoiding any flash of content.
   const [visible, setVisible] = React.useState(false);
@@ -1192,6 +1292,24 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
           aria-orientation="horizontal"
           className="flex h-9 items-center gap-2 w-full self-end"
         >
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search..."
+              value={searchInputValue}
+              onChange={handleSearchInputChange}
+              className="h-7 pl-8 pr-7 text-sm"
+            />
+            {searchInputValue && (
+              <button
+                type="button"
+                onClick={handleSearchClear}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
           <AdvancedFilter
             fields={filterFields}
             value={initialFilterNode}
@@ -1206,27 +1324,17 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
             onSaveColumns={handleSaveColumns}
           />
         </div>
-        <div
-          className="relative h-px overflow-hidden"
-          style={{ opacity: isFetching ? 1 : 0, transition: "opacity 0.2s ease" }}
-        >
-          <div className="absolute inset-0 bg-primary/20" />
-          <div
-            className="absolute inset-y-0 w-2/5 bg-primary"
-            style={{ animation: "progress-bar-slide 1s ease-in-out infinite" }}
-          />
-        </div>
         <DataGridKeyboardShortcuts enableSearch={!!dataGridProps.searchState} />
         <div style={{ height }}>
-          <DataGrid {...dataGridProps} table={table} height={height} />
+          <DataGrid {...dataGridProps} searchState={patchedSearchState} table={table} height={height} />
         </div>
-        <div className="flex items-center justify-between px-1 text-muted-foreground  text-sm">
+        <div className="flex items-center justify-between px-1 text-muted-foreground text-sm">
           <span>
             {totalRowCount > 0
               ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalRowCount)} of ${totalRowCount} rows`
               : "0 rows"}
           </span>
-          <div className="flex items-center  gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
@@ -1251,13 +1359,21 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
       </div>
     </DirectionProvider>
     <RowProfileModal
-      profileId={profileId}
+      profileId={localProfileId}
       model={model}
       formFields={formFields}
       fieldTypeMap={fieldTypeMap}
-      onClose={() => void setProfileId(null)}
+      onClose={() => {
+        setLocalProfileId(null);
+        void setProfileId(null);
+      }}
       onSaved={() => {
         void queryClient.invalidateQueries({ queryKey: [model] });
+      }}
+      onRowUpdated={(id, updated) => {
+        setData((prev) =>
+          prev.map((row) => (String(row.id) === id ? { ...row, ...updated } : row)),
+        );
       }}
     />
     </>
