@@ -125,6 +125,11 @@ html {
     transition-timing-function: ease;
   }
 
+  .disable-transitions,
+  .disable-transitions * {
+    transition: none !important;
+  }
+
   *::-webkit-scrollbar {
     width: 6px;
     height: 6px;

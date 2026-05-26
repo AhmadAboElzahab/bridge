@@ -11,6 +11,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+function switchTheme(setTheme: (theme: string) => void, theme: string) {
+  const el = document.documentElement;
+  el.classList.add("disable-transitions");
+  setTheme(theme);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => el.classList.remove("disable-transitions"));
+  });
+}
+
 export function ModeToggle() {
   const { setTheme } = useTheme();
 
@@ -24,15 +33,15 @@ export function ModeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => setTheme("light")}>
+        <DropdownMenuItem onSelect={() => switchTheme(setTheme, "light")}>
           <SunIcon className="mr-2 size-4" />
           <span>Light</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setTheme("dark")}>
+        <DropdownMenuItem onSelect={() => switchTheme(setTheme, "dark")}>
           <MoonIcon className="mr-2 size-4" />
           <span>Dark</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setTheme("system")}>
+        <DropdownMenuItem onSelect={() => switchTheme(setTheme, "system")}>
           <LaptopIcon className="mr-2 size-4" />
           <span>System</span>
         </DropdownMenuItem>
