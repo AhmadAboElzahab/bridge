@@ -5,6 +5,7 @@ import (
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/auth"
 	maid "github.com/AhmadAboElzahab/bridge/internal/controllers/maid"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/tabs"
+	"github.com/AhmadAboElzahab/bridge/internal/controllers/upload"
 	"github.com/AhmadAboElzahab/bridge/internal/controllers/user"
 	"github.com/AhmadAboElzahab/bridge/internal/middlewares"
 	// plop:imports
@@ -18,6 +19,7 @@ func SetupRoutes(r *gin.Engine) {
 	maidCtrl := maid.NewMaidController()
 	authCtrl := auth.NewAuthController()
 	tabsCtrl := tabs.NewTabsController()
+	uploadCtrl := upload.NewUploadController()
 	// plop:controllers
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -34,6 +36,8 @@ func SetupRoutes(r *gin.Engine) {
 	protected := api.Group("/")
 	protected.Use(middlewares.AuthMiddleware())
 
+	protected.POST("/upload", uploadCtrl.Upload)
+
 	users := protected.Group("/users")
 	{
 		users.POST("/index", userCtrl.Index)
@@ -41,6 +45,7 @@ func SetupRoutes(r *gin.Engine) {
 		users.GET("/:id", userCtrl.Show)
 		users.PUT("/:id", userCtrl.Update)
 		users.PATCH("/:id", userCtrl.Update)
+		users.PUT("/:id/relations", userCtrl.UpdateRelation)
 		users.DELETE("/:id", userCtrl.Delete)
 	}
 
@@ -51,6 +56,7 @@ func SetupRoutes(r *gin.Engine) {
 		maids.GET("/:id", maidCtrl.Show)
 		maids.PUT("/:id", maidCtrl.Update)
 		maids.PATCH("/:id", maidCtrl.Update)
+		maids.PUT("/:id/relations", maidCtrl.UpdateRelation)
 		maids.DELETE("/:id", maidCtrl.Delete)
 	}
 

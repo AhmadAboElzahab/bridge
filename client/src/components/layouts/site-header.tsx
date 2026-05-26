@@ -10,7 +10,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 w-full bg-muted">
       <div className="flex h-9 items-center">
         <Button variant="ghost" size="icon" className="size-8" asChild>
-          <Link href="/maids">
+          <Link href="/maids" viewTransition>
             <LayoutGrid />
           </Link>
         </Button>

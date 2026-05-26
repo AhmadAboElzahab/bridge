@@ -98,6 +98,12 @@ export function TableContainer({ entityType, model }: TableContainerProps) {
     onError: () => toast.error("Failed to delete tab"),
   });
 
+  const tabs = data?.tabs ?? [];
+  const form_fields = data?.form_fields ?? [];
+  const resolvedTabId = activeTabId || defaultTabId || 0;
+  const activeTab = tabs.find((t) => t.id === resolvedTabId) ?? tabs[0];
+  const entityLabel = entityType.toLowerCase() + "s";
+
   if (isLoading) {
     return <DataTableSkeleton columnCount={6} rowCount={10} />;
   }
@@ -110,10 +116,6 @@ export function TableContainer({ entityType, model }: TableContainerProps) {
     );
   }
 
-  const { tabs, form_fields } = data;
-  const resolvedTabId = activeTabId || defaultTabId || 0;
-  const activeTab = tabs.find((t) => t.id === resolvedTabId) ?? tabs[0];
-
   if (!activeTab) {
     return (
       <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
@@ -122,10 +124,8 @@ export function TableContainer({ entityType, model }: TableContainerProps) {
     );
   }
 
-  const entityLabel = entityType.toLowerCase() + "s";
-
   return (
-    <div className="">
+    <div>
       <div className="flex h-9 items-center bg-muted gap-2 border-b">
         <TabsPrimitive.Root
           value={String(activeTab.id)}

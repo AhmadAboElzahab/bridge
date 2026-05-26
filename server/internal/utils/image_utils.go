@@ -73,7 +73,7 @@ func ProcessImageUpload(ctx context.Context, file *multipart.FileHeader, folder 
 		return "", "", errors.New("failed to convert image to WebP")
 	}
 
-	publicURL, err := initializers.Storage.Upload(ctx, folder, webpBuf.Bytes())
+	publicURL, err := initializers.Storage.Upload(ctx, folder, ".webp", "image/webp", webpBuf.Bytes())
 	if err != nil {
 		return "", "", err
 	}

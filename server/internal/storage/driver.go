@@ -4,6 +4,8 @@ import "context"
 
 // Driver is the interface every storage backend must satisfy.
 type Driver interface {
-	// Upload stores data under the given folder and returns its public URL.
-	Upload(ctx context.Context, folder string, data []byte) (publicURL string, err error)
+	// Upload stores data and returns its public URL.
+	// ext must include the leading dot, e.g. ".webp", ".mp4".
+	// contentType is the MIME type, e.g. "image/webp", "video/mp4".
+	Upload(ctx context.Context, folder, ext, contentType string, data []byte) (publicURL string, err error)
 }

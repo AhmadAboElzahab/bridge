@@ -3,6 +3,8 @@
 import { DirectionProvider } from "@radix-ui/react-direction";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import { MoveDiagonal } from "lucide-react";
+import { parseAsString, useQueryState } from "nuqs";
 import * as React from "react";
 import { AdvancedFilter } from "@/components/advanced-filter";
 import { fromApiFilter } from "@/components/advanced-filter/to-api-filter";
@@ -20,11 +22,32 @@ import { useWindowSize } from "@/hooks/use-window-size";
 import { getFilterFn } from "@/lib/data-grid-filters";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   fetchModelIndex,
+  fetchModelRow,
   PAGE_SIZE,
+  updateModelRelation,
   updateModelRow,
 } from "@/services/data.service";
+import { uploadFile } from "@/services/upload.service";
 import { updateTabColumns, updateTabSorting } from "@/services/tabs.service";
 import type { FieldType, FilterGroup, FormField, UserTab } from "@/types/api";
 import type { CellOpts } from "@/types/data-grid";
@@ -136,16 +159,39 @@ function normalizeValue(val: unknown, fieldType: FieldType): unknown {
     case "multi_select":
     case "creatable_multi_select":
     case "multi_relation":
-      return Array.isArray(val) ? val.map(toSelectId) : [];
+      if (Array.isArray(val)) return val.map(toSelectId);
+      if (typeof val === "string" && val.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(val) as unknown[];
+          return parsed.map(toSelectId);
+        } catch {
+          return [];
+        }
+      }
+      return [];
 
     case "url_field":
     case "social_url_field":
     case "link_field":
+      // "url" cell variant expects a plain string, not FileCellData[]
+      if (typeof val === "string") return val;
+      if (typeof val === "object" && val !== null) {
+        const o = val as Record<string, unknown>;
+        return String(o.url ?? o.value ?? "");
+      }
+      return "";
+
     case "image_field":
     case "file_field":
     case "video_field":
     case "attachments_field":
       return toFileCellData(val);
+
+    case "array_field":
+      return Array.isArray(val) ? val.map(toSelectId) : [];
+
+    case "password_field":
+      return null;
 
     default:
       if (typeof val === "object" && !Array.isArray(val)) {
@@ -205,6 +251,16 @@ function fieldTypeToCellOpts(field: FormField): CellOpts {
     case "rich_field":
       return { variant: "long-text" };
 
+    case "string_field":
+    case "phone_field":
+    case "email_field":
+    case "password_field":
+    case "formula_field":
+      return { variant: "short-text" };
+
+    case "array_field":
+      return { variant: "multi-select", options };
+
     case "url_field":
     case "social_url_field":
     case "link_field":
@@ -238,6 +294,460 @@ function fieldTypeToCellOpts(field: FormField): CellOpts {
   }
 }
 
+function ProfileFieldEditor({
+  field,
+  value,
+  onChange,
+}: {
+  field: FormField;
+  value: unknown;
+  onChange: (val: unknown) => void;
+}) {
+  const type = field.form_field_type;
+
+  if (type === "formula_field") {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {field.label}
+        </Label>
+        <span className="text-sm text-muted-foreground">
+          {value !== null && value !== undefined && value !== "" ? String(value) : "—"}
+        </span>
+      </div>
+    );
+  }
+
+  if (type === "password_field") return null;
+
+  if (type === "boolean_field") {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {field.label}
+        </Label>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={!!value}
+            onCheckedChange={(checked) => onChange(!!checked)}
+          />
+          <span className="text-sm">{value ? "Yes" : "No"}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    type === "single_select" ||
+    type === "radio_select" ||
+    type === "creatable_single_select" ||
+    type === "single_relation"
+  ) {
+    const options = field.options ?? [];
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {field.label}
+        </Label>
+        <Select value={String(value ?? "")} onValueChange={onChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select…" />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((opt) => (
+              <SelectItem key={String(opt.value)} value={String(opt.value)}>
+                {String(opt.label)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
+  if (
+    type === "multi_select" ||
+    type === "creatable_multi_select" ||
+    type === "multi_relation" ||
+    type === "array_field"
+  ) {
+    const arr = Array.isArray(value) ? (value as string[]) : [];
+    const options = field.options ?? [];
+    const available = options.filter((o) => !arr.includes(String(o.value)));
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {field.label}
+        </Label>
+        {arr.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {arr.map((v, i) => {
+              const opt = options.find((o) => String(o.value) === String(v));
+              return (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs"
+                >
+                  {opt ? String(opt.label) : String(v)}
+                  <button
+                    type="button"
+                    onClick={() => onChange(arr.filter((_, j) => j !== i))}
+                    className="hover:text-destructive leading-none"
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        {available.length > 0 && (
+          <Select
+            value=""
+            onValueChange={(v) => {
+              if (v && !arr.includes(v)) onChange([...arr, v]);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Add…" />
+            </SelectTrigger>
+            <SelectContent>
+              {available.map((opt) => (
+                <SelectItem key={String(opt.value)} value={String(opt.value)}>
+                  {String(opt.label)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+    );
+  }
+
+  if (type === "rich_field") {
+    return (
+      <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {field.label}
+        </Label>
+        <Textarea
+          value={String(value ?? "")}
+          onChange={(e) => onChange(e.target.value)}
+          rows={5}
+        />
+      </div>
+    );
+  }
+
+  if (
+    type === "integer_field" ||
+    type === "float_field" ||
+    type === "currency_field" ||
+    type === "rating_field"
+  ) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {field.label}
+        </Label>
+        <Input
+          type="number"
+          value={value !== null && value !== undefined ? String(value) : ""}
+          onChange={(e) =>
+            onChange(e.target.value === "" ? null : Number(e.target.value))
+          }
+        />
+      </div>
+    );
+  }
+
+  if (type === "date_field") {
+    const dateStr = value ? String(value).split("T")[0] : "";
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {field.label}
+        </Label>
+        <Input
+          type="date"
+          value={dateStr}
+          onChange={(e) => onChange(e.target.value || null)}
+        />
+      </div>
+    );
+  }
+
+  if (type === "datetime_field") {
+    const raw = value ? String(value) : "";
+    const dtStr = raw.split("+")[0]?.split("Z")[0]?.split(".")[0] ?? "";
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {field.label}
+        </Label>
+        <Input
+          type="datetime-local"
+          value={dtStr}
+          onChange={(e) => onChange(e.target.value || null)}
+        />
+      </div>
+    );
+  }
+
+  if (
+    type === "image_field" ||
+    type === "video_field" ||
+    type === "file_field" ||
+    type === "attachments_field"
+  ) {
+    const files = Array.isArray(value)
+      ? (value as { url?: string; name?: string; type?: string }[])
+      : [];
+    const isMulti = type === "attachments_field";
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {field.label}
+        </Label>
+        {files.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {files.map((file, i) =>
+              file.type?.startsWith("image/") ? (
+                <div key={i} className="relative group/img">
+                  <img
+                    src={file.url}
+                    alt={file.name ?? ""}
+                    className="h-20 w-20 rounded-md object-cover border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onChange(files.filter((_, j) => j !== i))}
+                    className="absolute -top-1 -right-1 size-4 rounded-full bg-destructive text-white text-xs flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <div key={i} className="flex items-center gap-1">
+                  <a
+                    href={file.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    {file.name}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => onChange(files.filter((_, j) => j !== i))}
+                    className="text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    ×
+                  </button>
+                </div>
+              ),
+            )}
+          </div>
+        )}
+        <Input
+          type="url"
+          placeholder="Paste file URL…"
+          onBlur={(e) => {
+            const url = e.target.value.trim();
+            if (!url) return;
+            const newFile = {
+              id: url,
+              name: url.split("/").pop() ?? url,
+              size: 0,
+              type: guessMediaType(url),
+              url,
+            };
+            onChange(isMulti ? [...files, newFile] : [newFile]);
+            e.target.value = "";
+          }}
+        />
+      </div>
+    );
+  }
+
+  const inputType =
+    type === "email_field"
+      ? "email"
+      : type === "phone_field"
+        ? "tel"
+        : type === "url_field" ||
+            type === "social_url_field" ||
+            type === "link_field"
+          ? "url"
+          : "text";
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        {field.label}
+      </Label>
+      <Input
+        type={inputType}
+        value={String(value ?? "")}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+function RowProfileModal({
+  profileId,
+  model,
+  formFields,
+  fieldTypeMap,
+  onClose,
+  onSaved,
+}: {
+  profileId: string | null;
+  model: string;
+  formFields: FormField[];
+  fieldTypeMap: Map<string, FieldType>;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { data: rawRow, isLoading } = useQuery({
+    queryKey: ["profile", model, profileId],
+    queryFn: () => fetchModelRow(model, profileId!),
+    enabled: !!profileId,
+    staleTime: 0,
+  });
+
+  const [localData, setLocalData] = React.useState<Row | null>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (rawRow) setLocalData(normalizeRow(rawRow as Row, formFields));
+    else setLocalData(null);
+  }, [rawRow, formFields]);
+
+  const nameField = formFields.find((f) =>
+    ["name", "full_name", "first_name", "title"].includes(f.field_key),
+  );
+  const title =
+    localData && nameField
+      ? String(localData[nameField.field_key] ?? "") || "Profile"
+      : "Profile";
+
+  const handleSave = async () => {
+    if (!localData || !profileId) return;
+    setIsSaving(true);
+    try {
+      const patch: Record<string, unknown> = {};
+      const relations: { fieldKey: string; ids: number[] }[] = [];
+
+      for (const key of Object.keys(localData)) {
+        if (key === "id") continue;
+        const val = localData[key];
+        const fieldType = fieldTypeMap.get(key);
+
+        if (fieldType === "formula_field" || fieldType === "password_field")
+          continue;
+
+        if (fieldType === "multi_relation") {
+          const ids = (Array.isArray(val) ? val : [])
+            .map((v) => Number(v))
+            .filter((n) => Number.isFinite(n) && n > 0);
+          relations.push({ fieldKey: key, ids });
+          continue;
+        }
+
+        if (
+          fieldType === "multi_select" ||
+          fieldType === "creatable_multi_select"
+        ) {
+          patch[key] = JSON.stringify(Array.isArray(val) ? val : []);
+          continue;
+        }
+
+        if (fieldType === "single_relation") {
+          patch[`${key}_id`] =
+            val !== null && val !== "" ? Number(val) : null;
+          continue;
+        }
+
+        if (
+          fieldType === "image_field" ||
+          fieldType === "video_field" ||
+          fieldType === "file_field"
+        ) {
+          const files = Array.isArray(val) ? (val as { url?: string }[]) : [];
+          patch[key] = files[0]?.url ?? null;
+          continue;
+        }
+
+        if (fieldType === "attachments_field") {
+          const files = Array.isArray(val) ? (val as { url?: string }[]) : [];
+          patch[key] = JSON.stringify(files.map((f) => f.url).filter(Boolean));
+          continue;
+        }
+
+        patch[key] = val;
+      }
+
+      await Promise.all([
+        updateModelRow(model, profileId, patch),
+        ...relations.map(({ fieldKey, ids }) =>
+          updateModelRelation(model, profileId, fieldKey, ids),
+        ),
+      ]);
+
+      toast.success("Saved");
+      onSaved();
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const visibleFields = formFields.filter(
+    (f) => f.form_field_type !== "password_field",
+  );
+
+  return (
+    <Dialog open={!!profileId} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-4xl w-full max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
+          <DialogTitle>{isLoading ? "Loading…" : title}</DialogTitle>
+        </DialogHeader>
+        <div className="overflow-y-auto flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 px-6 py-6">
+          {isLoading ? (
+            <div className="col-span-2 flex items-center justify-center py-12 text-sm text-muted-foreground">
+              Loading…
+            </div>
+          ) : localData ? (
+            visibleFields.map((field) => (
+              <ProfileFieldEditor
+                key={field.field_key}
+                field={field}
+                value={localData[field.field_key]}
+                onChange={(val) =>
+                  setLocalData((prev) =>
+                    prev ? { ...prev, [field.field_key]: val } : null,
+                  )
+                }
+              />
+            ))
+          ) : null}
+        </div>
+        <DialogFooter className="px-6 py-4 border-t shrink-0">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={isSaving || isLoading || !localData}>
+            {isSaving ? "Saving…" : "Save changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 interface ModelDataGridProps {
   model: string;
   formFields: FormField[];
@@ -249,6 +759,8 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
   const windowSize = useWindowSize({ defaultHeight: 760 });
   const [data, setData] = React.useState<Row[]>([]);
   const prevDataRef = React.useRef<Row[]>([]);
+
+  const [profileId, setProfileId] = useQueryState("profile", parseAsString);
   const [page, setPage] = React.useState(1);
   const [apiFilters, setApiFilters] = React.useState<
     FilterGroup | Record<string, never>
@@ -321,7 +833,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     [formFields],
   );
 
-  const { data: apiData } = useQuery({
+  const { data: apiData, isFetching } = useQuery({
     queryKey: [model, tab.id, page, apiFilters, apiSorting],
     queryFn: () =>
       fetchModelIndex(model, {
@@ -388,6 +900,11 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         rowId: number | string;
         changed: Record<string, unknown>;
       }> = [];
+      const relationPatches: Array<{
+        rowId: number | string;
+        fieldKey: string;
+        ids: number[];
+      }> = [];
 
       for (let i = 0; i < newData.length; i++) {
         const newRow = newData[i];
@@ -399,28 +916,89 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
 
         const changed: Record<string, unknown> = {};
         for (const key of Object.keys(newRow)) {
-          if (key === "id" || newRow[key] === prevRow[key]) continue;
+          if (key === "id") continue;
+
+          const newVal = newRow[key];
+          const prevVal = prevRow[key];
+
+          // Array-aware equality: same reference OR same JSON for arrays
+          const unchanged =
+            newVal === prevVal ||
+            (Array.isArray(newVal) &&
+              Array.isArray(prevVal) &&
+              JSON.stringify(newVal) === JSON.stringify(prevVal));
+          if (unchanged) continue;
 
           const fieldType = fieldTypeMap.get(key);
 
-          // Many-to-many associations can't be patched via a simple column update
+          // computed fields are server-side only — never write back
+          if (fieldType === "formula_field") continue;
+
+          // many2many: queue a separate relation-replace call
+          if (fieldType === "multi_relation") {
+            const ids = (Array.isArray(newVal) ? newVal : [])
+              .map((v) => Number(v))
+              .filter((n) => Number.isFinite(n) && n > 0);
+            relationPatches.push({ rowId, fieldKey: key, ids });
+            continue;
+          }
+
+          // single file fields — store the URL of the uploaded file
           if (
-            fieldType === "multi_relation" ||
+            fieldType === "image_field" ||
+            fieldType === "video_field" ||
+            fieldType === "file_field"
+          ) {
+            const files = Array.isArray(newVal)
+              ? (newVal as { url?: string }[])
+              : [];
+            changed[key] = files[0]?.url ?? null;
+            continue;
+          }
+
+          // multi-file field — store JSON array of URLs
+          if (fieldType === "attachments_field") {
+            const files = Array.isArray(newVal)
+              ? (newVal as { url?: string }[])
+              : [];
+            changed[key] = JSON.stringify(
+              files.map((f) => f.url).filter(Boolean),
+            );
+            continue;
+          }
+
+          // multi_select / creatable_multi_select stored as a JSON string column
+          if (
             fieldType === "multi_select" ||
             fieldType === "creatable_multi_select"
           ) {
+            changed[key] = JSON.stringify(
+              Array.isArray(newVal) ? newVal : [],
+            );
             continue;
           }
 
-          // single_relation stores a foreign key column named field_key + "_id"
+          // single_relation maps to a foreign key column named field_key + "_id"
           if (fieldType === "single_relation") {
-            const rawId = newRow[key];
+            const numId = Number(newVal);
+            // 0 is Go's uint zero value — not a valid FK; treat as null (clear relation)
             changed[`${key}_id`] =
-              rawId !== null && rawId !== "" ? Number(rawId) : null;
+              Number.isFinite(numId) && numId > 0 ? numId : null;
             continue;
           }
 
-          changed[key] = newRow[key];
+          // url/link stored as a plain string
+          if (
+            fieldType === "url_field" ||
+            fieldType === "social_url_field" ||
+            fieldType === "link_field"
+          ) {
+            changed[key] =
+              typeof newVal === "string" ? newVal : null;
+            continue;
+          }
+
+          changed[key] = newVal;
         }
 
         if (Object.keys(changed).length > 0) {
@@ -429,11 +1007,14 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
       }
 
       try {
-        await Promise.all(
-          patches.map(({ rowId, changed }) =>
+        await Promise.all([
+          ...patches.map(({ rowId, changed }) =>
             updateModelRow(model, rowId, changed),
           ),
-        );
+          ...relationPatches.map(({ rowId, fieldKey, ids }) =>
+            updateModelRelation(model, rowId, fieldKey, ids),
+          ),
+        ]);
       } catch {
         // Rollback optimistic update on failure
         prevDataRef.current = prevData;
@@ -464,10 +1045,38 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     });
   }, [formFields, tab.columns]);
 
+  const expandColumn = React.useMemo<ColumnDef<Row>>(
+    () => ({
+      id: "expand",
+      header: () => null,
+      cell: ({ row }) => (
+        <div className="group flex items-center justify-center h-full">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              void setProfileId(String(row.original.id));
+            }}
+            className="rounded p-0.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-accent transition-all"
+            aria-label="Open profile"
+          >
+            <MoveDiagonal className="size-3.5" />
+          </button>
+        </div>
+      ),
+      size: 36,
+      enableHiding: false,
+      enableResizing: false,
+      enableSorting: false,
+    }),
+    [setProfileId],
+  );
+
   const columns = React.useMemo<ColumnDef<Row>[]>(() => {
     const colMap = new Map(tab.columns.map((c) => [c.field_key, c]));
     return [
       getDataGridSelectColumn<Row>({ enableRowMarkers: true }),
+      expandColumn,
       ...sortedFields.map(
         (field): ColumnDef<Row> => ({
           id: field.field_key,
@@ -482,31 +1091,44 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         }),
       ),
     ];
-  }, [sortedFields, tab.columns, filterFn]);
+  }, [expandColumn, sortedFields, tab.columns, filterFn]);
 
   const onFilesUpload = React.useCallback(
     async ({
       files,
+      columnId,
     }: {
       files: File[];
       rowIndex: number;
       columnId: string;
     }) => {
-      return files.map((file) => ({
-        id: crypto.randomUUID(),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url: URL.createObjectURL(file),
-      }));
+      const folder = `${model}/${columnId}`;
+      try {
+        const results = await Promise.all(
+          files.map(async (file) => {
+            const { url } = await uploadFile(file, folder);
+            return {
+              id: url,
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              url,
+            };
+          }),
+        );
+        return results;
+      } catch {
+        toast.error("File upload failed");
+        return [];
+      }
     },
-    [],
+    [model],
   );
 
   const getRowId = React.useCallback((row: Row) => String(row.id ?? ""), []);
 
   const columnOrder = React.useMemo(
-    () => ["select", ...sortedFields.map((f) => f.field_key)],
+    () => ["select", "expand", ...sortedFields.map((f) => f.field_key)],
     [sortedFields],
   );
 
@@ -540,7 +1162,7 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     onFilesUpload,
     getRowId,
     initialState: {
-      columnPinning: { left: ["select"] },
+      columnPinning: { left: ["select", "expand"] },
       columnVisibility,
       columnOrder,
       sorting: tab.sorting ?? [],
@@ -551,11 +1173,20 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
     enablePaste: true,
   });
 
+  // Start invisible so the very first paint is opacity:0 — useEffect fires after
+  // paint and triggers the CSS transition, avoiding any flash of content.
+  const [visible, setVisible] = React.useState(false);
+  React.useEffect(() => { setVisible(true); }, []);
+
   const height = Math.max(400, windowSize.height - 140);
 
   return (
-    <DirectionProvider dir="ltr">
-      <div className="flex flex-col">
+    <>
+      <DirectionProvider dir="ltr">
+      <div
+        className="flex flex-col"
+        style={{ opacity: visible ? 1 : 0, transition: "opacity 0.2s ease" }}
+      >
         <div
           role="toolbar"
           aria-orientation="horizontal"
@@ -573,6 +1204,16 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
             table={table}
             align="end"
             onSaveColumns={handleSaveColumns}
+          />
+        </div>
+        <div
+          className="relative h-px overflow-hidden"
+          style={{ opacity: isFetching ? 1 : 0, transition: "opacity 0.2s ease" }}
+        >
+          <div className="absolute inset-0 bg-primary/20" />
+          <div
+            className="absolute inset-y-0 w-2/5 bg-primary"
+            style={{ animation: "progress-bar-slide 1s ease-in-out infinite" }}
           />
         </div>
         <DataGridKeyboardShortcuts enableSearch={!!dataGridProps.searchState} />
@@ -609,5 +1250,16 @@ export function ModelDataGrid({ model, formFields, tab }: ModelDataGridProps) {
         </div>
       </div>
     </DirectionProvider>
+    <RowProfileModal
+      profileId={profileId}
+      model={model}
+      formFields={formFields}
+      fieldTypeMap={fieldTypeMap}
+      onClose={() => void setProfileId(null)}
+      onSaved={() => {
+        void queryClient.invalidateQueries({ queryKey: [model] });
+      }}
+    />
+    </>
   );
 }

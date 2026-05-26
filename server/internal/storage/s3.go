@@ -57,14 +57,14 @@ func NewS3Driver(accessKey, secretKey, region, endpoint, bucket, publicURL strin
 	}, nil
 }
 
-func (d *S3Driver) Upload(ctx context.Context, folder string, data []byte) (string, error) {
-	key := folder + "/" + uuid.New().String() + ".webp"
+func (d *S3Driver) Upload(ctx context.Context, folder, ext, contentType string, data []byte) (string, error) {
+	key := folder + "/" + uuid.New().String() + ext
 
 	_, err := d.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(d.bucket),
 		Key:         aws.String(key),
 		Body:        bytes.NewReader(data),
-		ContentType: aws.String("image/webp"),
+		ContentType: aws.String(contentType),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file: %w", err)

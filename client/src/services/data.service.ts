@@ -9,7 +9,24 @@ export async function updateModelRow(
   await api.patch(`/${model}/${id}`, patch);
 }
 
+export async function updateModelRelation(
+  model: string,
+  id: number | string,
+  fieldKey: string,
+  ids: number[],
+): Promise<void> {
+  await api.put(`/${model}/${id}/relations`, { field_key: fieldKey, ids });
+}
+
 export const PAGE_SIZE = 50;
+
+export async function fetchModelRow<T = Record<string, unknown>>(
+  model: string,
+  id: string | number,
+): Promise<T> {
+  const res = await api.get<T>(`/${model}/${id}`);
+  return res.data;
+}
 
 export async function fetchModelIndex<T = Record<string, unknown>>(
   model: string,
