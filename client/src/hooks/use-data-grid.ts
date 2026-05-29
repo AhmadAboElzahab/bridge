@@ -3011,8 +3011,8 @@ function useDataGrid<TData>({
         return;
       }
 
-      el.scrollTop += dTop * 0.12;
-      el.scrollLeft += dLeft * 0.12;
+      el.scrollTop += dTop * 0.25;
+      el.scrollLeft += dLeft * 0.25;
       rafId = requestAnimationFrame(animate);
     }
 
@@ -3020,8 +3020,8 @@ function useDataGrid<TData>({
       e.preventDefault();
       const maxTop = el!.scrollHeight - el!.clientHeight;
       const maxLeft = el!.scrollWidth - el!.clientWidth;
-      targetTop = Math.max(0, Math.min(maxTop, targetTop + e.deltaY * 0.3));
-      targetLeft = Math.max(0, Math.min(maxLeft, targetLeft + e.deltaX * 0.3));
+      targetTop = Math.max(0, Math.min(maxTop, targetTop + e.deltaY * 0.5));
+      targetLeft = Math.max(0, Math.min(maxLeft, targetLeft + e.deltaX * 0.5));
       if (rafId === null) rafId = requestAnimationFrame(animate);
     }
 

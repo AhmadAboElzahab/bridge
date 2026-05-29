@@ -1,16 +1,8 @@
 "use client";
 
 import { GripVertical, Plus, PlusSquare } from "lucide-react";
-import * as React from "react";
 import { type ItemInterface, ReactSortable } from "react-sortablejs";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { MAX_NESTING_LEVEL } from "@/hooks/use-advanced-filter";
 import { cn } from "@/lib/utils";
 import { FilterItemRow } from "./filter-item-row";
@@ -86,55 +78,30 @@ export function FilterGroup({
         isNested && "rounded-md border border-border bg-muted/30 p-2",
       )}
     >
-      {/* Group drag handle + header */}
-      <div className="flex items-center gap-1.5">
-        {showHandle && (
-          <button
-            type="button"
-            className="drag-handle cursor-grab text-muted-foreground hover:text-foreground"
-            aria-label="Drag group"
-          >
-            <GripVertical className="size-3.5" />
-          </button>
-        )}
-
-        {/* AND / OR — always visible when there are children */}
-        {group.children.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground text-xs">Match</span>
-            <Select
-              value={group.conjunction}
-              onValueChange={(v) =>
-                onUpdateConjunction(group.id, v as "and" | "or")
-              }
+      {/* Group drag handle + remove */}
+      {(showHandle || isNested) && (
+        <div className="flex items-center gap-1.5">
+          {showHandle && (
+            <button
+              type="button"
+              className="drag-handle cursor-grab text-muted-foreground hover:text-foreground"
+              aria-label="Drag group"
             >
-              <SelectTrigger className="h-7 w-[70px] text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="and" className="text-xs">
-                  All
-                </SelectItem>
-                <SelectItem value="or" className="text-xs">
-                  Any
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-muted-foreground text-xs">of the following</span>
-          </div>
-        )}
-
-        {isNested && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto h-6 px-2 text-muted-foreground text-xs hover:text-destructive"
-            onClick={() => onRemoveNode(group.id)}
-          >
-            Remove group
-          </Button>
-        )}
-      </div>
+              <GripVertical className="size-3.5" />
+            </button>
+          )}
+          {isNested && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto h-6 px-2 text-muted-foreground text-xs hover:text-destructive"
+              onClick={() => onRemoveNode(group.id)}
+            >
+              Remove group
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Children — items and nested groups, all draggable */}
       <ReactSortable
@@ -145,32 +112,50 @@ export function FilterGroup({
         handle=".drag-handle"
         ghostClass="opacity-40"
         dragClass="shadow-md"
-        className="flex flex-col gap-1.5"
+        className="flex flex-col gap-0"
       >
-        {group.children.map((child) => (
-          <div key={child.id}>
-            {child.type === "ITEM" ? (
-              <FilterItemRow
-                item={child}
-                fields={fields}
-                onUpdate={(updates) => onUpdateItem(child.id, updates)}
-                onRemove={() => onRemoveNode(child.id)}
-                showHandle
-              />
-            ) : (
-              <FilterGroup
-                group={child}
-                fields={fields}
-                depth={depth + 1}
-                showHandle
-                onAddItem={onAddItem}
-                onAddGroup={onAddGroup}
-                onRemoveNode={onRemoveNode}
-                onUpdateItem={onUpdateItem}
-                onUpdateConjunction={onUpdateConjunction}
-                onReorderChildren={onReorderChildren}
-              />
+        {group.children.map((child, index) => (
+          <div key={child.id} className="flex flex-col gap-0">
+            {index > 0 && (
+              <div className="flex items-center py-0.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onUpdateConjunction(
+                      group.id,
+                      group.conjunction === "and" ? "or" : "and",
+                    )
+                  }
+                  className="rounded border border-border bg-background px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground hover:border-primary hover:text-primary"
+                >
+                  {group.conjunction}
+                </button>
+              </div>
             )}
+            <div className="py-0.5">
+              {child.type === "ITEM" ? (
+                <FilterItemRow
+                  item={child}
+                  fields={fields}
+                  onUpdate={(updates) => onUpdateItem(child.id, updates)}
+                  onRemove={() => onRemoveNode(child.id)}
+                  showHandle
+                />
+              ) : (
+                <FilterGroup
+                  group={child}
+                  fields={fields}
+                  depth={depth + 1}
+                  showHandle
+                  onAddItem={onAddItem}
+                  onAddGroup={onAddGroup}
+                  onRemoveNode={onRemoveNode}
+                  onUpdateItem={onUpdateItem}
+                  onUpdateConjunction={onUpdateConjunction}
+                  onReorderChildren={onReorderChildren}
+                />
+              )}
+            </div>
           </div>
         ))}
       </ReactSortable>
